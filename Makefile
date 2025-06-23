@@ -7,12 +7,20 @@ OBJDIR = obj
 BINDIR = bin
 LIBDIR = lib
 INCDIR = include
+TESTDIR = tests
 
 SOURCES = $(wildcard $(SRCDIR)/*.c)
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 TARGET = $(BINDIR)/cengine
 
-.PHONY: all clean run
+LIB_SOURCES = $(filter-out $(SRCDIR)/main.c, $(SOURCES))
+LIB_OBJECTS = $(LIB_SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+
+TEST_SOURCES = $(wildcard $(TESTDIR)/unit/*.c)
+TEST_OBJECTS = $(TEST_SOURCES:$(TESTDIR)/unit/%.c=$(OBJDIR)/test_%.o)
+TEST_TARGETS = $(TEST_SOURCES:$(TESTDIR)/unit/%.c=$(BINDIR)/%)
+
+.PHONY: all clean run test clean-test
 
 all: $(TARGET)
 
@@ -39,3 +47,20 @@ debug: $(TARGET)
 
 release: CFLAGS += -O3 -DNDEBUG
 release: clean $(TARGET)
+
+# Test targets
+test: $(TEST_TARGETS)
+	@echo "Running tests..."
+	@for test in $(TEST_TARGETS); do \
+		echo "Running $$test"; \
+		$$test || exit 1; \
+	done
+
+$(BINDIR)/test_%: $(OBJDIR)/test_%.o $(LIB_OBJECTS) | $(BINDIR)
+	$(CC) $< $(LIB_OBJECTS) -o $@ $(LDFLAGS)
+
+$(OBJDIR)/test_%.o: $(TESTDIR)/unit/test_%.c | $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean-test:
+	rm -f $(OBJDIR)/test_*.o $(BINDIR)/test_*
