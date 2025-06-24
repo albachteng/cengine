@@ -17,27 +17,24 @@ typedef struct {
 } CircleCollider;
 
 typedef struct {
-    Vec3 center;
-    float radius;
-} BoundaryConstraint;
-
-typedef struct {
     ECS* ecs;
     ComponentType transform_type;
     ComponentType verlet_type;
     ComponentType collider_type;
-    ComponentType boundary_type;
     
     Vec3 gravity;
     float damping;
     int collision_iterations;
+    
+    Vec3 boundary_center;
+    float boundary_radius;
 } PhysicsWorld;
 
 void physics_world_init(PhysicsWorld* world, ECS* ecs, ComponentType transform_type);
 void physics_world_cleanup(PhysicsWorld* world);
 
 Entity physics_create_circle(PhysicsWorld* world, Vec3 position, float radius, float mass);
-void physics_add_boundary(PhysicsWorld* world, Entity entity, Vec3 center, float radius);
+void physics_set_boundary(PhysicsWorld* world, Vec3 center, float radius);
 
 void physics_system_update(float delta_time);
 void physics_verlet_integration(PhysicsWorld* world, float delta_time);

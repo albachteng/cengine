@@ -10,11 +10,13 @@ void physics_world_init(PhysicsWorld* world, ECS* ecs, ComponentType transform_t
     world->transform_type = transform_type;
     world->verlet_type = ecs_register_component(ecs, sizeof(VerletBody));
     world->collider_type = ecs_register_component(ecs, sizeof(CircleCollider));
-    world->boundary_type = ecs_register_component(ecs, sizeof(BoundaryConstraint));
     
     world->gravity = vec3_create(0.0f, -200.0f, 0.0f);
     world->damping = 0.99f;
-    world->collision_iterations = 2;
+    world->collision_iterations = 3;
+    
+    world->boundary_center = vec3_zero();
+    world->boundary_radius = 300.0f;
     
     g_physics_world = world;
     
@@ -46,10 +48,9 @@ Entity physics_create_circle(PhysicsWorld* world, Vec3 position, float radius, f
     return entity;
 }
 
-void physics_add_boundary(PhysicsWorld* world, Entity entity, Vec3 center, float radius) {
-    BoundaryConstraint* boundary = (BoundaryConstraint*)ecs_add_component(world->ecs, entity, world->boundary_type);
-    boundary->center = center;
-    boundary->radius = radius;
+void physics_set_boundary(PhysicsWorld* world, Vec3 center, float radius) {
+    world->boundary_center = center;
+    world->boundary_radius = radius;
 }
 
 void physics_system_update(float delta_time) {
@@ -138,19 +139,13 @@ void physics_apply_constraints(PhysicsWorld* world) {
         Transform* transform = (Transform*)ecs_get_component(world->ecs, entity, world->transform_type);
         CircleCollider* collider = (CircleCollider*)ecs_get_component(world->ecs, entity, world->collider_type);
         
-        for (Entity boundary_entity = 1; boundary_entity < world->ecs->next_entity_id; boundary_entity++) {
-            if (!ecs_has_component(world->ecs, boundary_entity, world->boundary_type)) continue;
-            
-            BoundaryConstraint* boundary = (BoundaryConstraint*)ecs_get_component(world->ecs, boundary_entity, world->boundary_type);
-            
-            Vec3 to_center = vec3_add(boundary->center, vec3_multiply(transform->position, -1.0f));
-            float distance = sqrtf(to_center.x * to_center.x + to_center.y * to_center.y);
-            float max_distance = boundary->radius - collider->radius;
-            
-            if (distance > max_distance) {
-                Vec3 direction = vec3_multiply(to_center, 1.0f / distance);
-                transform->position = vec3_add(boundary->center, vec3_multiply(direction, -max_distance));
-            }
+        Vec3 to_center = vec3_add(world->boundary_center, vec3_multiply(transform->position, -1.0f));
+        float distance = sqrtf(to_center.x * to_center.x + to_center.y * to_center.y);
+        float max_distance = world->boundary_radius - collider->radius;
+        
+        if (distance > max_distance) {
+            Vec3 direction = vec3_multiply(to_center, 1.0f / distance);
+            transform->position = vec3_add(world->boundary_center, vec3_multiply(direction, -max_distance));
         }
     }
 }
@@ -179,11 +174,13 @@ bool circle_circle_collision(Vec3 pos1, float r1, Vec3 pos2, float r2, Vec3* nor
 void resolve_circle_collision(Transform* t1, VerletBody* v1, CircleCollider* c1,
                              Transform* t2, VerletBody* v2, CircleCollider* c2,
                              Vec3 normal, float penetration) {
+    (void)v1; (void)v2;
+    
     float total_mass = c1->mass + c2->mass;
     float mass_ratio_1 = c2->mass / total_mass;
     float mass_ratio_2 = c1->mass / total_mass;
     
-    Vec3 correction = vec3_multiply(normal, penetration * 0.5f);
+    Vec3 correction = vec3_multiply(normal, penetration * 0.8f);
     t1->position = vec3_add(t1->position, vec3_multiply(correction, -mass_ratio_1));
     t2->position = vec3_add(t2->position, vec3_multiply(correction, mass_ratio_2));
 }

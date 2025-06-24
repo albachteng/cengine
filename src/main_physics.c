@@ -12,7 +12,7 @@
 #include "physics.h"
 
 #define NUM_CIRCLES 200
-#define BOUNDARY_RADIUS 300.0f
+#define BOUNDARY_RADIUS 150.0f
 
 float random_float(float min, float max) {
     return min + ((float)rand() / RAND_MAX) * (max - min);
@@ -53,9 +53,7 @@ int main(void) {
     
     PhysicsWorld physics;
     physics_world_init(&physics, &ecs, renderer.transform_type);
-    
-    Entity boundary_entity = ecs_create_entity(&ecs);
-    physics_add_boundary(&physics, boundary_entity, vec3_create(0.0f, 0.0f, 0.0f), BOUNDARY_RADIUS);
+    physics_set_boundary(&physics, vec3_create(0.0f, 0.0f, 0.0f), BOUNDARY_RADIUS);
     
     for (int i = 0; i < NUM_CIRCLES; i++) {
         float angle = random_float(0.0f, 2.0f * 3.14159f);
@@ -67,7 +65,7 @@ int main(void) {
             0.0f
         );
         
-        float circle_radius = random_float(3.0f, 8.0f);
+        float circle_radius = random_float(1.5f, 3.0f);
         float mass = circle_radius * circle_radius * 0.1f;
         
         Entity circle_entity = physics_create_circle(&physics, position, circle_radius, mass);
