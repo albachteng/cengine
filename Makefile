@@ -13,19 +13,26 @@ SOURCES = $(wildcard $(SRCDIR)/*.c)
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 TARGET = $(BINDIR)/cengine
 
-LIB_SOURCES = $(filter-out $(SRCDIR)/main.c, $(SOURCES))
+LIB_SOURCES = $(filter-out $(SRCDIR)/main.c $(SRCDIR)/main_physics.c, $(SOURCES))
 LIB_OBJECTS = $(LIB_SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
+
+PHYSICS_TARGET = $(BINDIR)/physics_demo
 
 TEST_SOURCES = $(wildcard $(TESTDIR)/unit/*.c)
 TEST_OBJECTS = $(TEST_SOURCES:$(TESTDIR)/unit/%.c=$(OBJDIR)/test_%.o)
 TEST_TARGETS = $(TEST_SOURCES:$(TESTDIR)/unit/%.c=$(BINDIR)/%)
 
-.PHONY: all clean run test clean-test
+.PHONY: all clean run test clean-test physics run-physics
 
 all: $(TARGET)
 
+physics: $(PHYSICS_TARGET)
+
 $(TARGET): $(OBJECTS) | $(BINDIR)
 	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
+
+$(PHYSICS_TARGET): $(LIB_OBJECTS) $(OBJDIR)/main_physics.o | $(BINDIR)
+	$(CC) $(LIB_OBJECTS) $(OBJDIR)/main_physics.o -o $@ $(LDFLAGS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -41,6 +48,9 @@ clean:
 
 run: $(TARGET)
 	./$(TARGET)
+
+run-physics: $(PHYSICS_TARGET)
+	./$(PHYSICS_TARGET)
 
 debug: CFLAGS += -DDEBUG
 debug: $(TARGET)

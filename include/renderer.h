@@ -29,6 +29,7 @@ void renderer_setup_triangle_mesh(Renderer* renderer);
 void renderer_setup_quad_mesh(Renderer* renderer);
 void renderer_render_triangle(Renderer* renderer, Transform* transform, Renderable* renderable);
 void renderer_render_quad(Renderer* renderer, Transform* transform, Renderable* renderable);
+void renderer_render_circle(Renderer* renderer, Transform* transform, Renderable* renderable);
 
 void renderer_system_update(float delta_time);
 

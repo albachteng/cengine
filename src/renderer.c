@@ -111,10 +111,37 @@ void renderer_render_entities(Renderer* renderer) {
             case SHAPE_QUAD:
                 renderer_render_quad(renderer, transform, renderable);
                 break;
+            case SHAPE_CIRCLE:
+                renderer_render_circle(renderer, transform, renderable);
+                break;
             default:
                 break;
         }
     }
+}
+
+void renderer_render_circle(Renderer* renderer, Transform* transform, Renderable* renderable) {
+    if (!renderable->visible) return;
+    
+    glPushMatrix();
+    glTranslatef(transform->position.x / 200.0f, transform->position.y / 200.0f, 0.0f);
+    glScalef(transform->scale.x * renderable->data.circle.radius / 20.0f, 
+             transform->scale.y * renderable->data.circle.radius / 20.0f, 1.0f);
+    
+    glColor4f(renderable->color.r, renderable->color.g, renderable->color.b, renderable->color.a);
+    
+    const int segments = 16;
+    glBegin(GL_TRIANGLE_FAN);
+    glVertex2f(0.0f, 0.0f);
+    for (int i = 0; i <= segments; i++) {
+        float angle = (float)i / (float)segments * 2.0f * 3.14159f;
+        glVertex2f(cosf(angle), sinf(angle));
+    }
+    glEnd();
+    
+    glPopMatrix();
+    
+    (void)renderer;
 }
 
 void renderer_system_update(float delta_time) {

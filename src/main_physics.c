@@ -1,0 +1,131 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <math.h>
+#include <GL/gl.h>
+#include <GLFW/glfw3.h>
+#include "window.h"
+#include "ecs.h"
+#include "components.h"
+#include "renderer.h"
+#include "input.h"
+#include "physics.h"
+
+#define NUM_CIRCLES 200
+#define BOUNDARY_RADIUS 300.0f
+
+float random_float(float min, float max) {
+    return min + ((float)rand() / RAND_MAX) * (max - min);
+}
+
+Color random_color() {
+    return color_create(
+        random_float(0.2f, 1.0f),
+        random_float(0.2f, 1.0f), 
+        random_float(0.2f, 1.0f),
+        1.0f
+    );
+}
+
+int main(void) {
+    srand((unsigned int)time(NULL));
+    
+    if (!window_init()) {
+        return -1;
+    }
+    
+    Window* window = window_create(800, 600, "C Engine - Physics Demo");
+    if (!window) {
+        window_terminate();
+        return -1;
+    }
+    
+    ECS ecs;
+    ecs_init(&ecs);
+    
+    Renderer renderer;
+    if (!renderer_init(&renderer, &ecs)) {
+        printf("Failed to initialize renderer\n");
+        window_destroy(window);
+        window_terminate();
+        return -1;
+    }
+    
+    PhysicsWorld physics;
+    physics_world_init(&physics, &ecs, renderer.transform_type);
+    
+    Entity boundary_entity = ecs_create_entity(&ecs);
+    physics_add_boundary(&physics, boundary_entity, vec3_create(0.0f, 0.0f, 0.0f), BOUNDARY_RADIUS);
+    
+    for (int i = 0; i < NUM_CIRCLES; i++) {
+        float angle = random_float(0.0f, 2.0f * 3.14159f);
+        float radius = random_float(0.0f, BOUNDARY_RADIUS * 0.8f);
+        
+        Vec3 position = vec3_create(
+            cos(angle) * radius,
+            sin(angle) * radius,
+            0.0f
+        );
+        
+        float circle_radius = random_float(3.0f, 8.0f);
+        float mass = circle_radius * circle_radius * 0.1f;
+        
+        Entity circle_entity = physics_create_circle(&physics, position, circle_radius, mass);
+        
+        Renderable* renderable = (Renderable*)ecs_add_component(&ecs, circle_entity, renderer.renderable_type);
+        *renderable = renderable_create_circle(circle_radius, random_color());
+    }
+    
+    InputState input;
+    input_init(&input, window->handle);
+    
+    printf("Physics Demo Initialized!\n");
+    printf("- %d circles with gravity and collision\n", NUM_CIRCLES);
+    printf("- Constrained within spherical boundary\n"); 
+    printf("- ESC to exit, Space to apply upward force\n");
+    
+    double last_time = glfwGetTime();
+    
+    while (!window_should_close(window)) {
+        window_poll_events();
+        input_update(&input);
+        
+        double current_time = glfwGetTime();
+        float delta_time = (float)(current_time - last_time);
+        last_time = current_time;
+        
+        if (delta_time > 0.033f) delta_time = 0.033f;
+        
+        if (input_key_down(&input, GLFW_KEY_ESCAPE)) {
+            glfwSetWindowShouldClose(window->handle, GLFW_TRUE);
+        }
+        
+        if (input_key_pressed(&input, GLFW_KEY_SPACE)) {
+            for (Entity entity = 1; entity < ecs.next_entity_id; entity++) {
+                if (!ecs_entity_active(&ecs, entity)) continue;
+                
+                if (ecs_has_component(&ecs, entity, physics.verlet_type)) {
+                    VerletBody* verlet = (VerletBody*)ecs_get_component(&ecs, entity, physics.verlet_type);
+                    verlet->acceleration = vec3_add(verlet->acceleration, vec3_create(0.0f, 500.0f, 0.0f));
+                }
+            }
+        }
+        
+        glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+        
+        renderer_begin_frame(&renderer);
+        ecs_update_systems(&ecs, delta_time);
+        renderer_end_frame(&renderer);
+        
+        window_swap_buffers(window);
+    }
+    
+    physics_world_cleanup(&physics);
+    input_cleanup(&input);
+    renderer_cleanup(&renderer);
+    ecs_cleanup(&ecs);
+    window_destroy(window);
+    window_terminate();
+    
+    return 0;
+}
