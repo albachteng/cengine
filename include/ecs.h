@@ -57,6 +57,11 @@ void ecs_register_system(ECS *ecs, SystemFunc system_func,
                          ComponentMask required_components);
 void ecs_update_systems(ECS *ecs, float delta_time);
 
+// Component iteration API
+typedef void (*EntityIteratorFunc)(ECS *ecs, Entity entity, void *user_data);
+void ecs_iterate_entities(ECS *ecs, ComponentMask component_mask, EntityIteratorFunc func, void *user_data);
+size_t ecs_get_entities_with_components(ECS *ecs, ComponentMask component_mask, Entity *out_entities, size_t max_entities);
+
 void ecs_init(ECS *ecs);
 void ecs_cleanup(ECS *ecs);
 

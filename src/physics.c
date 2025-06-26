@@ -1,4 +1,5 @@
 #include "physics.h"
+#include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +36,7 @@ void physics_world_init(PhysicsWorld *world, ECS *ecs,
                                (1ULL << world->verlet_type) |
                                (1ULL << world->collider_type);
   printf(
-      "Registering physics system with mask %llu (transform=%d, verlet=%d)\n",
+      "Registering physics system with mask %" PRIu64 " (transform=%d, verlet=%d)\n",
       physics_mask, world->transform_type, world->verlet_type);
   ecs_register_system(ecs, physics_system_update, physics_mask);
 }
@@ -130,8 +131,6 @@ void physics_verlet_integration(PhysicsWorld *world, float delta_time) {
 }
 
 void physics_solve_collisions(PhysicsWorld *world) {
-  static int collision_debug_frame = 0;
-  bool debug_this_frame = (collision_debug_frame % 240 == 0);
   
   // Clear and populate spatial grid
   spatial_grid_clear(&world->spatial_grid);
@@ -202,16 +201,10 @@ void physics_solve_collisions(PhysicsWorld *world) {
       float penetration;
       if (circle_circle_collision(t1->position, c1->radius, t2->position,
                                   c2->radius, &normal, &penetration)) {
-        if (debug_this_frame) {
-          printf("COLLISION DETECTED! Penetration: %.2f\n", penetration);
-          printf("COLLISION DETECTED! Normal: (x, y, z) (%.2f, %.2f, %.2f)\n",
-                 normal.x, normal.y, normal.z);
-        }
         resolve_circle_collision(t1, v1, c1, t2, v2, c2, normal, penetration);
       }
     }
   }
-  collision_debug_frame++;
 }
 
 void physics_apply_constraints(PhysicsWorld *world) {

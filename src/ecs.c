@@ -132,3 +132,40 @@ void ecs_update_systems(ECS *ecs, float delta_time) {
   }
   debug_frame++;
 }
+
+void ecs_iterate_entities(ECS *ecs, ComponentMask component_mask, EntityIteratorFunc func, void *user_data) {
+  if (!func) {
+    return;
+  }
+  
+  for (Entity entity = 1; entity < ecs->next_entity_id; entity++) {
+    if (!ecs_entity_active(ecs, entity)) {
+      continue;
+    }
+    
+    // Check if entity has all required components
+    if ((ecs->entities[entity].mask & component_mask) == component_mask) {
+      func(ecs, entity, user_data);
+    }
+  }
+}
+
+size_t ecs_get_entities_with_components(ECS *ecs, ComponentMask component_mask, Entity *out_entities, size_t max_entities) {
+  if (!out_entities || max_entities == 0) {
+    return 0;
+  }
+  
+  size_t count = 0;
+  for (Entity entity = 1; entity < ecs->next_entity_id && count < max_entities; entity++) {
+    if (!ecs_entity_active(ecs, entity)) {
+      continue;
+    }
+    
+    // Check if entity has all required components
+    if ((ecs->entities[entity].mask & component_mask) == component_mask) {
+      out_entities[count++] = entity;
+    }
+  }
+  
+  return count;
+}
