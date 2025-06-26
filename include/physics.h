@@ -3,6 +3,7 @@
 
 #include "components.h"
 #include "ecs.h"
+#include "memory.h"
 
 // Physics system constants
 #define PHYSICS_DEFAULT_COLLISION_ITERATIONS 20
@@ -58,6 +59,7 @@ typedef struct {
     float boundary_radius;
     
     SpatialGrid spatial_grid;
+    Arena spatial_arena;  // Arena for spatial grid allocations
 } PhysicsWorld;
 
 void physics_world_init(PhysicsWorld* world, ECS* ecs, ComponentType transform_type);
@@ -77,10 +79,10 @@ void resolve_circle_collision(Transform* t1, VerletBody* v1, CircleCollider* c1,
                              Vec3 normal, float penetration);
 
 // Spatial partitioning functions
-void spatial_grid_init(SpatialGrid* grid, Vec3 origin, float width, float height, float cell_size);
+void spatial_grid_init(SpatialGrid* grid, Arena* arena, Vec3 origin, float width, float height, float cell_size);
 void spatial_grid_cleanup(SpatialGrid* grid);
 void spatial_grid_clear(SpatialGrid* grid);
-void spatial_grid_insert(SpatialGrid* grid, Entity entity, Vec3 position, float radius);
+void spatial_grid_insert(SpatialGrid* grid, Arena* arena, Entity entity, Vec3 position, float radius);
 void spatial_grid_get_potential_collisions(SpatialGrid* grid, Entity entity, Vec3 position, float radius, Entity** out_entities, int* out_count);
 
 extern PhysicsWorld* g_physics_world;

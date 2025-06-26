@@ -4,16 +4,21 @@
 #include <string.h>
 
 void ecs_init(ECS *ecs) {
+  // ZII: ecs should already be zero-initialized
   memset(ecs, 0, sizeof(ECS));
   ecs->next_entity_id = 1;
+  
+  // Initialize arena pool for component allocations
+  if (!arena_pool_init(&ecs->component_arena_pool)) {
+    fprintf(stderr, "Failed to initialize ECS component arena pool\n");
+  }
 }
 
 void ecs_cleanup(ECS *ecs) {
-  for (size_t i = 0; i < ecs->component_count; i++) {
-    if (ecs->components[i].data) {
-      free(ecs->components[i].data);
-    }
-  }
+  // Component data is allocated in arena pool, so we just clean up the pool
+  arena_pool_cleanup(&ecs->component_arena_pool);
+  
+  // Reset to ZII state
   memset(ecs, 0, sizeof(ECS));
 }
 
@@ -54,13 +59,19 @@ ComponentType ecs_register_component(ECS *ecs, size_t component_size) {
 
   array->component_size = component_size;
   array->capacity = MAX_ENTITIES;
-  array->data = calloc(MAX_ENTITIES, component_size);
+  
+  // Allocate component array from arena pool
+  size_t total_size = MAX_ENTITIES * component_size;
+  array->data = arena_pool_alloc(&ecs->component_arena_pool, total_size);
   array->count = 0;
 
   if (!array->data) {
-    fprintf(stderr, "Failed to allocate component array\n");
+    fprintf(stderr, "Failed to allocate component array from arena pool\n");
     return MAX_COMPONENTS;
   }
+  
+  // Zero-initialize the component array
+  memset(array->data, 0, total_size);
 
   return type;
 }

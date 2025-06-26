@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "memory.h"
 
 #define MAX_ENTITIES 1024
 #define MAX_COMPONENTS 32
@@ -41,6 +42,8 @@ typedef struct {
   Entity next_entity_id;
   size_t component_count;
   size_t system_count;
+  
+  ArenaPool component_arena_pool;  // Arena pool for component allocations
 } ECS;
 
 Entity ecs_create_entity(ECS *ecs);

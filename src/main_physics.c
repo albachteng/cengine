@@ -51,10 +51,10 @@ int main(void) {
     return -1;
   }
 
-  ECS ecs;
+  ECS ecs = {0};  // ZII
   ecs_init(&ecs);
 
-  Renderer renderer;
+  Renderer renderer = {0};  // ZII
   if (!renderer_init(&renderer, &ecs)) {
     printf("Failed to initialize renderer\n");
     window_destroy(window);
@@ -62,7 +62,7 @@ int main(void) {
     return -1;
   }
 
-  PhysicsWorld physics;
+  PhysicsWorld physics = {0};  // ZII
   physics_world_init(&physics, &ecs, renderer.transform_type);
   physics_set_boundary(&physics,
                        vec3_create(0.0f, 0.0f, 0.0f), // Q: why repeat this?
@@ -118,7 +118,7 @@ int main(void) {
            ecs_has_component(&ecs, entity, physics.collider_type));
   }
 
-  InputState input;
+  InputState input = {0};  // ZII
   input_init(&input, window->handle);
 
   printf("Physics Demo Initialized!\n");

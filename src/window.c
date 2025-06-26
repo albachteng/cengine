@@ -28,6 +28,8 @@ Window* window_create(int width, int height, const char* title) {
         return NULL;
     }
     
+    // ZII: zero initialize the window structure
+    memset(window, 0, sizeof(Window));
     window->width = width;
     window->height = height;
     window->title = title;

@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -12,6 +13,7 @@ PhysicsWorld *g_physics_world = NULL;
 
 void physics_world_init(PhysicsWorld *world, ECS *ecs,
                         ComponentType transform_type) {
+  // ZII: world should already be zero-initialized
   world->ecs = ecs;
   world->transform_type = transform_type;
   world->verlet_type = ecs_register_component(ecs, sizeof(VerletBody));
@@ -24,11 +26,17 @@ void physics_world_init(PhysicsWorld *world, ECS *ecs,
   world->boundary_center = vec3_zero();
   world->boundary_radius = PHYSICS_DEFAULT_BOUNDARY_RADIUS;
   
+  // Initialize arena for spatial grid allocations
+  if (!arena_init(&world->spatial_arena, 64 * 1024)) {  // 64KB for spatial nodes
+    printf("Failed to initialize spatial arena\n");
+    return;
+  }
+  
   // Initialize spatial grid with appropriate cell size
-  float cell_size = PHYSICS_SPATIAL_CELL_SIZE; // Roughly 4x the average circle radius
-  float grid_size = world->boundary_radius * 2.2f; // Cover the boundary with some margin
+  float cell_size = PHYSICS_SPATIAL_CELL_SIZE;
+  float grid_size = world->boundary_radius * 2.2f;
   Vec3 grid_origin = vec3_create(-grid_size / 2.0f, -grid_size / 2.0f, 0.0f);
-  spatial_grid_init(&world->spatial_grid, grid_origin, grid_size, grid_size, cell_size);
+  spatial_grid_init(&world->spatial_grid, &world->spatial_arena, grid_origin, grid_size, grid_size, cell_size);
 
   g_physics_world = world;
 
@@ -43,8 +51,8 @@ void physics_world_init(PhysicsWorld *world, ECS *ecs,
 
 void physics_world_cleanup(PhysicsWorld *world) {
   spatial_grid_cleanup(&world->spatial_grid);
+  arena_cleanup(&world->spatial_arena);
   g_physics_world = NULL;
-  (void)world;
 }
 
 Entity physics_create_circle(PhysicsWorld *world, Vec3 position, float radius,
@@ -132,6 +140,9 @@ void physics_verlet_integration(PhysicsWorld *world, float delta_time) {
 
 void physics_solve_collisions(PhysicsWorld *world) {
   
+  // Reset arena for this frame's spatial allocations
+  arena_reset(&world->spatial_arena);
+  
   // Clear and populate spatial grid
   spatial_grid_clear(&world->spatial_grid);
   
@@ -150,7 +161,7 @@ void physics_solve_collisions(PhysicsWorld *world) {
     Transform *transform = (Transform *)ecs_get_component(world->ecs, entity, world->transform_type);
     CircleCollider *collider = (CircleCollider *)ecs_get_component(world->ecs, entity, world->collider_type);
     
-    spatial_grid_insert(&world->spatial_grid, entity, transform->position, collider->radius);
+    spatial_grid_insert(&world->spatial_grid, &world->spatial_arena, entity, transform->position, collider->radius);
   }
 
   // Check collisions using spatial partitioning
@@ -300,39 +311,44 @@ void resolve_circle_collision(Transform *t1, VerletBody *v1, CircleCollider *c1,
       vec3_add(t2->position, vec3_multiply(correction, mass_ratio_2));
 }
 
-// Spatial partitioning implementation
-void spatial_grid_init(SpatialGrid* grid, Vec3 origin, float width, float height, float cell_size) {
+// Spatial partitioning implementation with arena allocator
+void spatial_grid_init(SpatialGrid* grid, Arena* arena, Vec3 origin, float width, float height, float cell_size) {
+  // ZII: grid should already be zero-initialized
   grid->grid_origin = origin;
   grid->cell_size = cell_size;
   grid->grid_width = (int)(width / cell_size) + 1;
   grid->grid_height = (int)(height / cell_size) + 1;
   
   int total_cells = grid->grid_width * grid->grid_height;
-  grid->cells = (SpatialCell*)malloc(sizeof(SpatialCell) * total_cells);
+  grid->cells = (SpatialCell*)arena_alloc(arena, sizeof(SpatialCell) * total_cells);
   
-  for (int i = 0; i < total_cells; i++) {
-    grid->cells[i].entities = NULL;
+  if (!grid->cells) {
+    printf("ERROR: Failed to allocate spatial grid cells (%d cells, %zu bytes)\\n", 
+           total_cells, sizeof(SpatialCell) * total_cells);
+    return;
   }
+  
+  memset(grid->cells, 0, sizeof(SpatialCell) * total_cells);
+  printf("Spatial grid initialized: %dx%d = %d cells\\n", 
+         grid->grid_width, grid->grid_height, total_cells);
 }
 
 void spatial_grid_cleanup(SpatialGrid* grid) {
-  if (grid->cells) {
-    spatial_grid_clear(grid);
-    free(grid->cells);
-    grid->cells = NULL;
-  }
+  // With arena allocator, cells are freed when arena is cleaned up
+  // Just clear the grid state
+  memset(grid, 0, sizeof(SpatialGrid));
 }
 
 void spatial_grid_clear(SpatialGrid* grid) {
+  // With arena allocator, we just reset all cell entity lists to NULL
+  // The arena will be reset between frames
+  if (!grid->cells) {
+    return;  // Grid not initialized
+  }
+  
   int total_cells = grid->grid_width * grid->grid_height;
   
   for (int i = 0; i < total_cells; i++) {
-    EntityNode* current = grid->cells[i].entities;
-    while (current) {
-      EntityNode* next = current->next;
-      free(current);
-      current = next;
-    }
     grid->cells[i].entities = NULL;
   }
 }
@@ -349,7 +365,7 @@ static void spatial_grid_get_cell_coords(SpatialGrid* grid, Vec3 position, int* 
   *y = (int)((position.y - grid->grid_origin.y) / grid->cell_size);
 }
 
-void spatial_grid_insert(SpatialGrid* grid, Entity entity, Vec3 position, float radius) {
+void spatial_grid_insert(SpatialGrid* grid, Arena* arena, Entity entity, Vec3 position, float radius) {
   // Calculate which cells this entity overlaps (considering its radius)
   int min_x, min_y, max_x, max_y;
   
@@ -359,15 +375,17 @@ void spatial_grid_insert(SpatialGrid* grid, Entity entity, Vec3 position, float 
   spatial_grid_get_cell_coords(grid, min_pos, &min_x, &min_y);
   spatial_grid_get_cell_coords(grid, max_pos, &max_x, &max_y);
   
-  // Insert entity into all overlapping cells
+  // Insert entity into all overlapping cells using arena allocation
   for (int y = min_y; y <= max_y; y++) {
     for (int x = min_x; x <= max_x; x++) {
       int cell_index = spatial_grid_hash(grid, x, y);
       if (cell_index >= 0) {
-        EntityNode* node = (EntityNode*)malloc(sizeof(EntityNode));
-        node->entity = entity;
-        node->next = grid->cells[cell_index].entities;
-        grid->cells[cell_index].entities = node;
+        EntityNode* node = (EntityNode*)arena_alloc(arena, sizeof(EntityNode));
+        if (node) {
+          node->entity = entity;
+          node->next = grid->cells[cell_index].entities;
+          grid->cells[cell_index].entities = node;
+        }
       }
     }
   }
