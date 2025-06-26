@@ -18,14 +18,14 @@ void physics_world_init(PhysicsWorld *world, ECS *ecs,
   world->collider_type = ecs_register_component(ecs, sizeof(CircleCollider));
 
   world->gravity = vec3_create(0.0f, -200.0f, 0.0f);
-  world->damping = 0.99f;
-  world->collision_iterations = 20;
+  world->damping = PHYSICS_DEFAULT_DAMPING;
+  world->collision_iterations = PHYSICS_DEFAULT_COLLISION_ITERATIONS;
 
   world->boundary_center = vec3_zero();
-  world->boundary_radius = 300.0f;
+  world->boundary_radius = PHYSICS_DEFAULT_BOUNDARY_RADIUS;
   
   // Initialize spatial grid with appropriate cell size
-  float cell_size = 20.0f; // Roughly 4x the average circle radius
+  float cell_size = PHYSICS_SPATIAL_CELL_SIZE; // Roughly 4x the average circle radius
   float grid_size = world->boundary_radius * 2.2f; // Cover the boundary with some margin
   Vec3 grid_origin = vec3_create(-grid_size / 2.0f, -grid_size / 2.0f, 0.0f);
   spatial_grid_init(&world->spatial_grid, grid_origin, grid_size, grid_size, cell_size);
@@ -65,7 +65,7 @@ Entity physics_create_circle(PhysicsWorld *world, Vec3 position, float radius,
       world->ecs, entity, world->collider_type);
   collider->radius = radius;
   collider->mass = mass;
-  collider->restitution = 0.8f;
+  collider->restitution = PHYSICS_DEFAULT_RESTITUTION;
 
   return entity;
 }
@@ -249,7 +249,7 @@ bool circle_circle_collision(Vec3 pos1, float r1, Vec3 pos2, float r2,
   float distance = sqrtf(distance_sq);
   *penetration = radius_sum - distance;
 
-  if (distance > 0.001f) {  // Use small threshold instead of 0
+  if (distance > PHYSICS_OVERLAP_THRESHOLD) {  // Use small threshold instead of 0
     *normal = vec3_multiply(diff, 1.0f / distance);
   } else {
     // Generate random direction when circles are nearly overlapping
@@ -267,7 +267,7 @@ void resolve_circle_collision(Transform *t1, VerletBody *v1, CircleCollider *c1,
   (void)v2;
 
   // Clamp penetration to prevent numerical explosion
-  float max_penetration = (c1->radius + c2->radius) * 0.8f;
+  float max_penetration = (c1->radius + c2->radius) * PHYSICS_MAX_PENETRATION_RATIO;
   if (penetration > max_penetration) {
     penetration = max_penetration;
   }
@@ -277,12 +277,12 @@ void resolve_circle_collision(Transform *t1, VerletBody *v1, CircleCollider *c1,
   float mass_ratio_2 = c1->mass / total_mass;
 
   // Reduce correction factor to improve stability
-  float correction_factor = 0.8f;
+  float correction_factor = PHYSICS_CORRECTION_FACTOR;
   
   // Ensure normal is properly normalized and Z component is 0 for 2D
   normal.z = 0.0f;
   float normal_length = sqrtf(normal.x * normal.x + normal.y * normal.y);
-  if (normal_length > 0.001f) {
+  if (normal_length > PHYSICS_OVERLAP_THRESHOLD) {
     normal.x /= normal_length;
     normal.y /= normal_length;
   } else {
@@ -374,7 +374,7 @@ void spatial_grid_insert(SpatialGrid* grid, Entity entity, Vec3 position, float 
 }
 
 void spatial_grid_get_potential_collisions(SpatialGrid* grid, Entity entity, Vec3 position, float radius, Entity** out_entities, int* out_count) {
-  static Entity potential_entities[1024]; // Static buffer to avoid allocation
+  static Entity potential_entities[PHYSICS_SPATIAL_BUFFER_SIZE]; // Static buffer to avoid allocation
   int count = 0;
   
   // Calculate which cells this entity overlaps
@@ -387,12 +387,12 @@ void spatial_grid_get_potential_collisions(SpatialGrid* grid, Entity entity, Vec
   spatial_grid_get_cell_coords(grid, max_pos, &max_x, &max_y);
   
   // Collect all entities from overlapping cells
-  for (int y = min_y; y <= max_y && count < 1024; y++) {
-    for (int x = min_x; x <= max_x && count < 1024; x++) {
+  for (int y = min_y; y <= max_y && count < PHYSICS_SPATIAL_BUFFER_SIZE; y++) {
+    for (int x = min_x; x <= max_x && count < PHYSICS_SPATIAL_BUFFER_SIZE; x++) {
       int cell_index = spatial_grid_hash(grid, x, y);
       if (cell_index >= 0) {
         EntityNode* current = grid->cells[cell_index].entities;
-        while (current && count < 1024) {
+        while (current && count < PHYSICS_SPATIAL_BUFFER_SIZE) {
           // Don't include the entity itself and avoid duplicates
           if (current->entity != entity) {
             bool already_added = false;

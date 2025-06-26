@@ -5,9 +5,23 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+// Renderer constants
+#define RENDER_COORD_SCALE_X 400.0f
+#define RENDER_COORD_SCALE_Y 300.0f
+#define RENDER_SCALE_FACTOR 200.0f
+#define RENDER_TRIANGLE_SCALE 0.5f
+#define CIRCLE_SEGMENTS 16
+
 Renderer *g_renderer = NULL;
 
 int renderer_init(Renderer *renderer, ECS *ecs) {
+  // ZII: zero initialize renderer structure
+  memset(renderer, 0, sizeof(Renderer));
+  
   renderer->ecs = ecs;
   renderer->transform_type = ecs_register_component(ecs, sizeof(Transform));
   renderer->renderable_type = ecs_register_component(ecs, sizeof(Renderable));
@@ -51,9 +65,9 @@ void renderer_render_triangle(Renderer *renderer, Transform *transform,
     return;
 
   glPushMatrix();
-  glTranslatef(transform->position.x / 400.0f, transform->position.y / 300.0f,
+  glTranslatef(transform->position.x / RENDER_COORD_SCALE_X, transform->position.y / RENDER_COORD_SCALE_Y,
                0.0f);
-  glScalef(transform->scale.x * 0.5f, transform->scale.y * 0.5f, 1.0f);
+  glScalef(transform->scale.x * RENDER_TRIANGLE_SCALE, transform->scale.y * RENDER_TRIANGLE_SCALE, 1.0f);
 
   glColor4f(renderable->color.r, renderable->color.g, renderable->color.b,
             renderable->color.a);
@@ -75,10 +89,10 @@ void renderer_render_quad(Renderer *renderer, Transform *transform,
     return;
 
   glPushMatrix();
-  glTranslatef(transform->position.x / 400.0f, transform->position.y / 300.0f,
+  glTranslatef(transform->position.x / RENDER_COORD_SCALE_X, transform->position.y / RENDER_COORD_SCALE_Y,
                0.0f);
-  glScalef(transform->scale.x * renderable->data.quad.width / 200.0f,
-           transform->scale.y * renderable->data.quad.height / 200.0f, 1.0f);
+  glScalef(transform->scale.x * renderable->data.quad.width / RENDER_SCALE_FACTOR,
+           transform->scale.y * renderable->data.quad.height / RENDER_SCALE_FACTOR, 1.0f);
 
   glColor4f(renderable->color.r, renderable->color.g, renderable->color.b,
             renderable->color.a);
@@ -132,20 +146,18 @@ void renderer_render_circle(Renderer *renderer, Transform *transform,
     return;
 
   glPushMatrix();
-  glTranslatef(transform->position.x / 200.0f, transform->position.y / 200.0f,
+  glTranslatef(transform->position.x / RENDER_SCALE_FACTOR, transform->position.y / RENDER_SCALE_FACTOR,
                0.0f);
-  glScalef(transform->scale.x * renderable->data.circle.radius /
-               200.0f, /* NOTE: potential source of visual bugs */
-           transform->scale.y * renderable->data.circle.radius / 200.0f, 1.0f);
+  glScalef(transform->scale.x * renderable->data.circle.radius / RENDER_SCALE_FACTOR,
+           transform->scale.y * renderable->data.circle.radius / RENDER_SCALE_FACTOR, 1.0f);
 
   glColor4f(renderable->color.r, renderable->color.g, renderable->color.b,
             renderable->color.a);
 
-  const int segments = 16;
   glBegin(GL_TRIANGLE_FAN);
   glVertex2f(0.0f, 0.0f);
-  for (int i = 0; i <= segments; i++) {
-    float angle = (float)i / (float)segments * 2.0f * 3.14159f;
+  for (int i = 0; i <= CIRCLE_SEGMENTS; i++) {
+    float angle = (float)i / (float)CIRCLE_SEGMENTS * 2.0f * (float)M_PI;
     glVertex2f(cosf(angle), sinf(angle));
   }
   glEnd();

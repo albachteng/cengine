@@ -2,15 +2,16 @@
 #include <string.h>
 
 Transform transform_create(float x, float y, float z) {
-    Transform t;
+    Transform t = {0}; // ZII: zero initialize entire structure
     t.position = vec3_create(x, y, z);
-    t.rotation = vec3_zero();
-    t.scale = vec3_one();
+    t.scale = vec3_one(); // rotation stays zero from initialization
     return t;
 }
 
 Transform transform_identity(void) {
-    return transform_create(0.0f, 0.0f, 0.0f);
+    Transform t = {0}; // ZII: zero initialization with scale fixup
+    t.scale = vec3_one();
+    return t;
 }
 
 void transform_translate(Transform* transform, Vec3 translation) {
@@ -36,6 +37,12 @@ Color color_create(float r, float g, float b, float a) {
     return c;
 }
 
+// ZII-compatible color creation from zero-initialized struct
+Color color_from_zero(Color* c, float r, float g, float b, float a) {
+    c->r = r; c->g = g; c->b = b; c->a = a;
+    return *c;
+}
+
 Color color_white(void) { return color_create(1.0f, 1.0f, 1.0f, 1.0f); }
 Color color_black(void) { return color_create(0.0f, 0.0f, 0.0f, 1.0f); }
 Color color_red(void) { return color_create(1.0f, 0.0f, 0.0f, 1.0f); }
@@ -43,48 +50,39 @@ Color color_green(void) { return color_create(0.0f, 1.0f, 0.0f, 1.0f); }
 Color color_blue(void) { return color_create(0.0f, 0.0f, 1.0f, 1.0f); }
 
 Renderable renderable_create_triangle(Color color) {
-    Renderable r;
-    memset(&r, 0, sizeof(Renderable));
+    Renderable r = {0}; // ZII: zero initialize
     r.shape = SHAPE_TRIANGLE;
     r.color = color;
     r.visible = true;
-    r.layer = 0;
     return r;
 }
 
 Renderable renderable_create_quad(float width, float height, Color color) {
-    Renderable r;
-    memset(&r, 0, sizeof(Renderable));
+    Renderable r = {0}; // ZII: zero initialize
     r.shape = SHAPE_QUAD;
     r.color = color;
     r.visible = true;
-    r.layer = 0;
     r.data.quad.width = width;
     r.data.quad.height = height;
     return r;
 }
 
 Renderable renderable_create_circle(float radius, Color color) {
-    Renderable r;
-    memset(&r, 0, sizeof(Renderable));
+    Renderable r = {0}; // ZII: zero initialize
     r.shape = SHAPE_CIRCLE;
     r.color = color;
     r.visible = true;
-    r.layer = 0;
     r.data.circle.radius = radius;
     return r;
 }
 
 Renderable renderable_create_sprite(const char* texture_path, float width, float height) {
-    Renderable r;
-    memset(&r, 0, sizeof(Renderable));
+    Renderable r = {0}; // ZII: zero initialize
     r.shape = SHAPE_SPRITE;
     r.color = color_white();
     r.visible = true;
-    r.layer = 0;
     r.data.sprite.texture.texture_path = texture_path;
     r.data.sprite.size = vec3_create(width, height, 1.0f);
-    r.data.sprite.texture.texture_id = 0;
     return r;
 }
 

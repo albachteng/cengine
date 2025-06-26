@@ -117,7 +117,7 @@ void ecs_register_system(ECS *ecs, SystemFunc system_func,
 void ecs_update_systems(ECS *ecs, float delta_time) {
   static int debug_frame = 0;
   if (debug_frame % 120 == 0) {
-    printf("ecs_update_systems: Running %d systems\n", ecs->system_count);
+    printf("ecs_update_systems: Running %zu systems\n", ecs->system_count);
   }
 
   for (uint32_t i = 0; i < ecs->system_count; i++) {

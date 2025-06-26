@@ -56,6 +56,7 @@ static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) 
 }
 
 void input_init(InputState* input, GLFWwindow* window) {
+    // ZII: zero initialize input state
     memset(input, 0, sizeof(InputState));
     input->window = window;
     g_input = input;

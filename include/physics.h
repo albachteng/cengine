@@ -4,6 +4,17 @@
 #include "components.h"
 #include "ecs.h"
 
+// Physics system constants
+#define PHYSICS_DEFAULT_COLLISION_ITERATIONS 20
+#define PHYSICS_DEFAULT_DAMPING 0.99f
+#define PHYSICS_DEFAULT_BOUNDARY_RADIUS 300.0f
+#define PHYSICS_SPATIAL_CELL_SIZE 20.0f
+#define PHYSICS_SPATIAL_BUFFER_SIZE 1024
+#define PHYSICS_MAX_PENETRATION_RATIO 0.8f
+#define PHYSICS_CORRECTION_FACTOR 0.8f
+#define PHYSICS_OVERLAP_THRESHOLD 0.001f
+#define PHYSICS_DEFAULT_RESTITUTION 0.8f
+
 typedef struct {
     Vec3 velocity;
     Vec3 acceleration;

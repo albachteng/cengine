@@ -78,6 +78,7 @@ void transform_scale_uniform(Transform* transform, float scale);
 void transform_scale(Transform* transform, Vec3 scale);
 
 Color color_create(float r, float g, float b, float a);
+Color color_from_zero(Color* c, float r, float g, float b, float a); // ZII-compatible
 Color color_white(void);
 Color color_black(void);
 Color color_red(void);
