@@ -16,6 +16,23 @@ typedef struct {
     float restitution;
 } CircleCollider;
 
+typedef struct EntityNode {
+    Entity entity;
+    struct EntityNode* next;
+} EntityNode;
+
+typedef struct {
+    EntityNode* entities;
+} SpatialCell;
+
+typedef struct {
+    SpatialCell* cells;
+    int grid_width;
+    int grid_height;
+    float cell_size;
+    Vec3 grid_origin;
+} SpatialGrid;
+
 typedef struct {
     ECS* ecs;
     ComponentType transform_type;
@@ -28,6 +45,8 @@ typedef struct {
     
     Vec3 boundary_center;
     float boundary_radius;
+    
+    SpatialGrid spatial_grid;
 } PhysicsWorld;
 
 void physics_world_init(PhysicsWorld* world, ECS* ecs, ComponentType transform_type);
@@ -45,6 +64,13 @@ bool circle_circle_collision(Vec3 pos1, float r1, Vec3 pos2, float r2, Vec3* nor
 void resolve_circle_collision(Transform* t1, VerletBody* v1, CircleCollider* c1,
                              Transform* t2, VerletBody* v2, CircleCollider* c2,
                              Vec3 normal, float penetration);
+
+// Spatial partitioning functions
+void spatial_grid_init(SpatialGrid* grid, Vec3 origin, float width, float height, float cell_size);
+void spatial_grid_cleanup(SpatialGrid* grid);
+void spatial_grid_clear(SpatialGrid* grid);
+void spatial_grid_insert(SpatialGrid* grid, Entity entity, Vec3 position, float radius);
+void spatial_grid_get_potential_collisions(SpatialGrid* grid, Entity entity, Vec3 position, float radius, Entity** out_entities, int* out_count);
 
 extern PhysicsWorld* g_physics_world;
 

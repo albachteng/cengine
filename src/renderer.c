@@ -134,7 +134,8 @@ void renderer_render_circle(Renderer *renderer, Transform *transform,
   glPushMatrix();
   glTranslatef(transform->position.x / 200.0f, transform->position.y / 200.0f,
                0.0f);
-  glScalef(transform->scale.x * renderable->data.circle.radius / 200.0f,
+  glScalef(transform->scale.x * renderable->data.circle.radius /
+               200.0f, /* NOTE: potential source of visual bugs */
            transform->scale.y * renderable->data.circle.radius / 200.0f, 1.0f);
 
   glColor4f(renderable->color.r, renderable->color.g, renderable->color.b,

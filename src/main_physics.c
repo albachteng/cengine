@@ -11,7 +11,11 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define NUM_CIRCLES 2
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#define NUM_CIRCLES 20
 #define BOUNDARY_RADIUS 100.0f
 
 float random_float(float min, float max) {
@@ -53,55 +57,49 @@ int main(void) {
                        vec3_create(0.0f, 0.0f, 0.0f), // Q: why repeat this?
                        BOUNDARY_RADIUS);
 
-  // Test with 2 circles very close together
-  float circle_radius = 5.0f;
-  float mass = circle_radius * circle_radius * 0.1f;
+  // Create random circles distributed within the boundary
+  printf("Creating %d random circles...\n", NUM_CIRCLES);
+  for (int i = 0; i < NUM_CIRCLES; i++) {
+    // Smaller radius range to reduce overlaps
+    float circle_radius = random_float(2.0f, 5.0f);
+    float mass = circle_radius * circle_radius * 0.1f;
+    
+    // Spread circles in a grid-like pattern with some randomness
+    int circles_per_row = (int)sqrtf((float)NUM_CIRCLES) + 1;
+    float grid_spacing = (BOUNDARY_RADIUS * 1.5f) / circles_per_row;
+    int row = i / circles_per_row;
+    int col = i % circles_per_row;
+    
+    float base_x = (col - circles_per_row / 2.0f) * grid_spacing;
+    float base_y = (row - circles_per_row / 2.0f) * grid_spacing;
+    
+    // Add some randomness to the grid positions
+    Vec3 pos = vec3_create(
+        base_x + random_float(-grid_spacing * 0.3f, grid_spacing * 0.3f),
+        base_y + random_float(-grid_spacing * 0.3f, grid_spacing * 0.3f) + 30.0f, // Start higher up
+        0.0f
+    );
+    
+    Entity circle = physics_create_circle(&physics, pos, circle_radius, mass);
+    Renderable *renderable = (Renderable *)ecs_add_component(&ecs, circle, renderer.renderable_type);
+    *renderable = renderable_create_circle(circle_radius, random_color());
+    
+    // Progress feedback
+    if (i % 5 == 0) {
+      printf("Created %d circles...\n", i + 1);
+    }
+  }
 
-  // Circle 1: Higher up
-  Vec3 pos1 = vec3_create(0.0f, 20.0f, 0.0f); // Closer together
-  Entity circle1 = physics_create_circle(&physics, pos1, circle_radius, mass);
-  Renderable *r1 =
-      (Renderable *)ecs_add_component(&ecs, circle1, renderer.renderable_type);
-  *r1 = renderable_create_circle(circle_radius,
-                                 color_create(1.0f, 0.0f, 0.0f, 1.0f));
-
-  // Circle 2: Lower
-  Vec3 pos2 = vec3_create(0.0f, 0.0f, 0.0f); // Closer together
-  Entity circle2 = physics_create_circle(&physics, pos2, circle_radius, mass);
-  Renderable *r2 =
-      (Renderable *)ecs_add_component(&ecs, circle2, renderer.renderable_type);
-  *r2 = renderable_create_circle(circle_radius,
-                                 color_create(0.0f, 1.0f, 0.0f, 1.0f));
-
-  // Verify components were added correctly
-  printf("Checking components for circle1 (entity %d):\n", circle1);
-  printf("  Has transform: %d (type %d)\n",
-         ecs_has_component(&ecs, circle1, renderer.transform_type),
-         renderer.transform_type);
-  printf("  Has renderable: %d (type %d)\n",
-         ecs_has_component(&ecs, circle1, renderer.renderable_type),
-         renderer.renderable_type);
-  printf("  Has verlet: %d (type %d)\n",
-         ecs_has_component(&ecs, circle1, physics.verlet_type),
-         physics.verlet_type);
-  printf("  Has collider: %d (type %d)\n",
-         ecs_has_component(&ecs, circle1, physics.collider_type),
-         physics.collider_type);
-  printf("  Entity mask: %llu\n", ecs.entities[circle1].mask);
-
-  printf("Checking components for circle2 (entity %d):\n", circle2);
-  printf("  Has transform: %d (type %d)\n",
-         ecs_has_component(&ecs, circle2, renderer.transform_type),
-         renderer.transform_type);
-  printf("  Has renderable: %d (type %d)\n",
-         ecs_has_component(&ecs, circle2, renderer.renderable_type),
-         renderer.renderable_type);
-  printf("  Has verlet: %d (type %d)\n",
-         ecs_has_component(&ecs, circle2, physics.verlet_type),
-         physics.verlet_type);
-  printf("  Has collider: %d (type %d)\n",
-         ecs_has_component(&ecs, circle2, physics.collider_type),
-         physics.collider_type);
+  // Verify components were added correctly (check first few entities)
+  printf("Verifying component setup for first 3 entities:\n");
+  for (Entity entity = 1; entity <= 3 && entity < ecs.next_entity_id; entity++) {
+    printf("Entity %d:\n", entity);
+    printf("  Transform: %d, Renderable: %d, Verlet: %d, Collider: %d\n",
+           ecs_has_component(&ecs, entity, renderer.transform_type),
+           ecs_has_component(&ecs, entity, renderer.renderable_type),
+           ecs_has_component(&ecs, entity, physics.verlet_type),
+           ecs_has_component(&ecs, entity, physics.collider_type));
+  }
 
   InputState input;
   input_init(&input, window->handle);
