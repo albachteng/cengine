@@ -4,10 +4,11 @@
 #include "components.h"
 #include "ecs.h"
 #include "memory.h"
+#include <stdbool.h>
 
 // Physics system constants
-#define PHYSICS_DEFAULT_COLLISION_ITERATIONS 20
-#define PHYSICS_DEFAULT_DAMPING 0.99f
+#define PHYSICS_DEFAULT_COLLISION_ITERATIONS 8  // Reduced to prevent over-correction
+#define PHYSICS_DEFAULT_DAMPING 0.98f           // Slightly more damping for stability
 #define PHYSICS_DEFAULT_BOUNDARY_RADIUS 300.0f
 #define PHYSICS_SPATIAL_CELL_SIZE 20.0f
 #define PHYSICS_SPATIAL_BUFFER_SIZE 4096  // Static buffer for potential collision candidates per entity
@@ -15,11 +16,16 @@
 #define PHYSICS_CORRECTION_FACTOR 0.8f
 #define PHYSICS_OVERLAP_THRESHOLD 0.001f
 #define PHYSICS_DEFAULT_RESTITUTION 0.8f
+#define PHYSICS_SLEEP_VELOCITY_THRESHOLD 5.0f    // Velocity below which objects sleep
+#define PHYSICS_SLEEP_TIME_THRESHOLD 60          // Frames below threshold before sleeping
+#define PHYSICS_WAKE_VELOCITY_THRESHOLD 10.0f    // Velocity above which sleeping objects wake
 
 typedef struct {
     Vec3 velocity;
     Vec3 acceleration;
     Vec3 old_position;
+    bool is_sleeping;          // Whether object is in sleep mode
+    int sleep_timer;           // Frames the object has been below sleep threshold
 } VerletBody;
 
 typedef struct {

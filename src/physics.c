@@ -73,6 +73,8 @@ Entity physics_create_circle(PhysicsWorld *world, Vec3 position, float radius,
   verlet->velocity = (Vec3){0};
   verlet->acceleration = (Vec3){0};
   verlet->old_position = position;
+  verlet->is_sleeping = false;  // Start awake
+  verlet->sleep_timer = 0;
 
   CircleCollider *collider = (CircleCollider *)ecs_add_component(
       world->ecs, entity, world->collider_type);
@@ -125,6 +127,40 @@ void physics_verlet_integration(PhysicsWorld *world, float delta_time) {
         (VerletBody *)ecs_get_component(world->ecs, entity, world->verlet_type);
 
     Vec3 current_position = transform->position;
+    
+    // Calculate current velocity from position difference
+    Vec3 velocity = vec3_multiply(vec3_add(current_position, vec3_multiply(verlet->old_position, -1.0f)), 
+                                  1.0f / delta_time);
+    float speed = sqrtf(velocity.x * velocity.x + velocity.y * velocity.y);
+    verlet->velocity = velocity;
+    
+    // Sleep management
+    if (verlet->is_sleeping) {
+      // Check if we should wake up (collision or significant external force)
+      float accel_magnitude = sqrtf(verlet->acceleration.x * verlet->acceleration.x + 
+                                    verlet->acceleration.y * verlet->acceleration.y);
+      if (speed > PHYSICS_WAKE_VELOCITY_THRESHOLD || accel_magnitude > PHYSICS_WAKE_VELOCITY_THRESHOLD) {
+        verlet->is_sleeping = false;
+        verlet->sleep_timer = 0;
+      } else {
+        // Stay asleep - no physics integration
+        verlet->acceleration = (Vec3){0};
+        return;
+      }
+    } else {
+      // Check if we should go to sleep
+      if (speed < PHYSICS_SLEEP_VELOCITY_THRESHOLD) {
+        verlet->sleep_timer++;
+        if (verlet->sleep_timer >= PHYSICS_SLEEP_TIME_THRESHOLD) {
+          verlet->is_sleeping = true;
+          verlet->velocity = (Vec3){0};
+          verlet->acceleration = (Vec3){0};
+          return;
+        }
+      } else {
+        verlet->sleep_timer = 0;  // Reset timer if moving too fast
+      }
+    }
 
     verlet->acceleration = vec3_add(verlet->acceleration, world->gravity);
 
@@ -148,19 +184,37 @@ void physics_solve_collisions(PhysicsWorld *world) {
   // Reset arena for this frame's spatial allocations
   arena_reset(&world->spatial_arena);
   
-  // Track arena usage for debugging if needed
+  // Track arena usage and sleeping objects for debugging
   static int frame_count = 0;
   if (frame_count == 0) {
     ArenaStats stats = {0};
     arena_get_stats(&world->spatial_arena, &stats);
     printf("Spatial arena initialized: Size: %zu KB\n", stats.total_size / 1024);
   }
+  
+  // Count sleeping objects every 300 frames (5 seconds at 60fps)
+  if (frame_count % 300 == 0 && frame_count > 0) {
+    int sleeping_count = 0;
+    int total_count = 0;
+    for (Entity entity = 1; entity < world->ecs->next_entity_id; entity++) {
+      if (!ecs_entity_active(world->ecs, entity)) continue;
+      if (!ecs_has_component(world->ecs, entity, world->verlet_type)) continue;
+      
+      VerletBody *verlet = (VerletBody *)ecs_get_component(world->ecs, entity, world->verlet_type);
+      total_count++;
+      if (verlet->is_sleeping) sleeping_count++;
+    }
+    printf("Frame %d: %d/%d objects sleeping (%.1f%%)\n", 
+           frame_count, sleeping_count, total_count, 
+           total_count > 0 ? (float)sleeping_count / total_count * 100.0f : 0.0f);
+  }
+  
   frame_count++;
   
   // Clear and populate spatial grid
   spatial_grid_clear(&world->spatial_grid);
   
-  // Insert all entities into spatial grid
+  // Insert all entities into spatial grid (skip sleeping objects for optimization)
   for (Entity entity = 1; entity < world->ecs->next_entity_id; entity++) {
     if (!ecs_entity_active(world->ecs, entity)) {
       continue;
@@ -170,6 +224,11 @@ void physics_solve_collisions(PhysicsWorld *world) {
         !ecs_has_component(world->ecs, entity, world->verlet_type) ||
         !ecs_has_component(world->ecs, entity, world->collider_type)) {
       continue;
+    }
+
+    VerletBody *verlet = (VerletBody *)ecs_get_component(world->ecs, entity, world->verlet_type);
+    if (verlet->is_sleeping) {
+      continue;  // Skip sleeping objects for collision detection optimization
     }
 
     Transform *transform = (Transform *)ecs_get_component(world->ecs, entity, world->transform_type);
@@ -193,6 +252,10 @@ void physics_solve_collisions(PhysicsWorld *world) {
     Transform *t1 = (Transform *)ecs_get_component(world->ecs, entity1, world->transform_type);
     VerletBody *v1 = (VerletBody *)ecs_get_component(world->ecs, entity1, world->verlet_type);
     CircleCollider *c1 = (CircleCollider *)ecs_get_component(world->ecs, entity1, world->collider_type);
+
+    if (v1->is_sleeping) {
+      continue;  // Skip sleeping objects as primary collision entity
+    }
 
     // Get potential collision candidates from spatial grid
     Entity *potential_entities;
@@ -288,21 +351,41 @@ bool circle_circle_collision(Vec3 pos1, float r1, Vec3 pos2, float r2,
 void resolve_circle_collision(Transform *t1, VerletBody *v1, CircleCollider *c1,
                               Transform *t2, VerletBody *v2, CircleCollider *c2,
                               Vec3 normal, float penetration) {
-  (void)v1;
-  (void)v2;
+  // Wake up any sleeping objects involved in collision
+  if (v1->is_sleeping) {
+    v1->is_sleeping = false;
+    v1->sleep_timer = 0;
+  }
+  if (v2->is_sleeping) {
+    v2->is_sleeping = false;
+    v2->sleep_timer = 0;
+  }
 
   // Clamp penetration to prevent numerical explosion
   float max_penetration = (c1->radius + c2->radius) * PHYSICS_MAX_PENETRATION_RATIO;
   if (penetration > max_penetration) {
     penetration = max_penetration;
   }
+  
+  // Apply a minimum penetration threshold to reduce micro-corrections
+  if (penetration < PHYSICS_OVERLAP_THRESHOLD * 2.0f) {
+    return;  // Skip tiny overlaps that cause jitter
+  }
 
   float total_mass = c1->mass + c2->mass;
   float mass_ratio_1 = c2->mass / total_mass;
   float mass_ratio_2 = c1->mass / total_mass;
 
-  // Reduce correction factor to improve stability
+  // Reduce correction factor for objects with low velocity to prevent energy pumping
+  float v1_speed = sqrtf(v1->velocity.x * v1->velocity.x + v1->velocity.y * v1->velocity.y);
+  float v2_speed = sqrtf(v2->velocity.x * v2->velocity.x + v2->velocity.y * v2->velocity.y);
+  float avg_speed = (v1_speed + v2_speed) * 0.5f;
+  
   float correction_factor = PHYSICS_CORRECTION_FACTOR;
+  if (avg_speed < PHYSICS_SLEEP_VELOCITY_THRESHOLD) {
+    // Reduce correction for slow-moving objects to prevent jitter
+    correction_factor *= 0.3f;
+  }
   
   // Ensure normal is properly normalized and Z component is 0 for 2D
   normal.z = 0.0f;
