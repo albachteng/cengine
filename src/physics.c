@@ -27,7 +27,8 @@ void physics_world_init(PhysicsWorld *world, ECS *ecs,
   world->boundary_radius = PHYSICS_DEFAULT_BOUNDARY_RADIUS;
   
   // Initialize arena for spatial grid allocations
-  if (!arena_init(&world->spatial_arena, 1024 * 1024)) {  // 1MB: ~131,000 EntityNodes (8 bytes each) for spatial grid insertions
+  // 4MB initial: ~524,000 EntityNodes (8 bytes each) for spatial grid insertions - should handle 500+ entities across multiple cells
+  if (!arena_init(&world->spatial_arena, 4 * 1024 * 1024)) {
     printf("Failed to initialize spatial arena\n");
     return;
   }
@@ -146,6 +147,15 @@ void physics_solve_collisions(PhysicsWorld *world) {
   
   // Reset arena for this frame's spatial allocations
   arena_reset(&world->spatial_arena);
+  
+  // Track arena usage for debugging if needed
+  static int frame_count = 0;
+  if (frame_count == 0) {
+    ArenaStats stats = {0};
+    arena_get_stats(&world->spatial_arena, &stats);
+    printf("Spatial arena initialized: Size: %zu KB\n", stats.total_size / 1024);
+  }
+  frame_count++;
   
   // Clear and populate spatial grid
   spatial_grid_clear(&world->spatial_grid);
@@ -317,6 +327,7 @@ void resolve_circle_collision(Transform *t1, VerletBody *v1, CircleCollider *c1,
 
 // Spatial partitioning implementation with arena allocator
 void spatial_grid_init(SpatialGrid* grid, Arena* arena, Vec3 origin, float width, float height, float cell_size) {
+  (void)arena;  // Arena parameter kept for API compatibility but not used since we malloc cells directly
   // ZII: grid should already be zero-initialized
   grid->grid_origin = origin;
   grid->cell_size = cell_size;
@@ -324,7 +335,8 @@ void spatial_grid_init(SpatialGrid* grid, Arena* arena, Vec3 origin, float width
   grid->grid_height = (int)(height / cell_size) + 1;
   
   int total_cells = grid->grid_width * grid->grid_height;
-  grid->cells = (SpatialCell*)arena_alloc(arena, sizeof(SpatialCell) * total_cells);
+  // Use malloc for cells array to avoid issues with arena reallocation
+  grid->cells = (SpatialCell*)malloc(sizeof(SpatialCell) * total_cells);
   
   if (!grid->cells) {
     printf("ERROR: Failed to allocate spatial grid cells (%d cells, %zu bytes)\\n", 
@@ -338,8 +350,11 @@ void spatial_grid_init(SpatialGrid* grid, Arena* arena, Vec3 origin, float width
 }
 
 void spatial_grid_cleanup(SpatialGrid* grid) {
-  // With arena allocator, cells are freed when arena is cleaned up
-  // Just clear the grid state
+  // Free the malloc'd cells array
+  if (grid && grid->cells) {
+    free(grid->cells);
+  }
+  // Clear the grid state
   memset(grid, 0, sizeof(SpatialGrid));
 }
 
@@ -396,7 +411,11 @@ void spatial_grid_insert(SpatialGrid* grid, Arena* arena, Entity entity, Vec3 po
           node->next = grid->cells[cell_index].entities;
           grid->cells[cell_index].entities = node;
         } else {
-          printf("ERROR: Failed to allocate EntityNode from arena\n");
+          printf("ERROR: Failed to allocate EntityNode from arena for entity %d\n", entity);
+          ArenaStats stats = {0};
+          arena_get_stats(arena, &stats);
+          printf("Arena stats: Size=%zu, Used=%zu, Free=%zu\n", stats.total_size, stats.used_bytes, stats.free_bytes);
+          return;  // Early return to prevent further crashes
         }
       }
     }

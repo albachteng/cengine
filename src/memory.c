@@ -46,6 +46,33 @@ void arena_reset(Arena* arena) {
     // Keep memory allocated and ownership status
 }
 
+bool arena_expand_if_needed(Arena* arena, size_t upcoming_alloc_size) {
+    if (!arena || !arena->memory || !arena->owns_memory) {
+        return false;  // Can't expand external buffers
+    }
+    
+    // Calculate usage after the upcoming allocation
+    size_t aligned_used = align_size(arena->used, ARENA_ALIGNMENT);
+    size_t projected_usage = aligned_used + upcoming_alloc_size;
+    
+    // Check if we'll exceed the threshold
+    float usage_ratio = (float)projected_usage / (float)arena->size;
+    if (usage_ratio <= ARENA_EXPANSION_THRESHOLD) {
+        return true;  // No expansion needed
+    }
+    
+    // Double the arena size
+    size_t new_size = arena->size * 2;
+    char* new_memory = (char*)realloc(arena->memory, new_size);
+    if (!new_memory) {
+        return false;  // Expansion failed
+    }
+    
+    arena->memory = new_memory;
+    arena->size = new_size;
+    return true;
+}
+
 void* arena_alloc(Arena* arena, size_t size) {
     return arena_alloc_aligned(arena, size, ARENA_ALIGNMENT);
 }
@@ -55,12 +82,17 @@ void* arena_alloc_aligned(Arena* arena, size_t size, size_t alignment) {
         return NULL;
     }
     
+    // Try to expand arena if needed before allocation
+    if (!arena_expand_if_needed(arena, size)) {
+        // Expansion failed, but maybe we still have enough space
+    }
+    
     // Align the current position
     size_t aligned_used = align_size(arena->used, alignment);
     
     // Check if we have enough space
     if (aligned_used + size > arena->size) {
-        return NULL;  // Arena full
+        return NULL;  // Arena full and couldn't expand
     }
     
     void* ptr = arena->memory + aligned_used;

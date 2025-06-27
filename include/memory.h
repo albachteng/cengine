@@ -9,6 +9,7 @@
 #define ARENA_DEFAULT_SIZE (16 * 1024 * 1024)  // 16MB: supports 2048 entities with 4 components (~370KB) + spatial grid overhead
 #define ARENA_ALIGNMENT 8                  // 8-byte alignment for most platforms
 #define ARENA_MAX_ARENAS 16               // Maximum number of arenas per pool
+#define ARENA_EXPANSION_THRESHOLD 0.8f     // Expand when 80% full
 
 // Memory arena structure - supports ZII
 typedef struct {
@@ -36,6 +37,9 @@ void arena_cleanup(Arena* arena);
 
 // Reset arena to beginning (keeps memory allocated)
 void arena_reset(Arena* arena);
+
+// Expand arena if approaching capacity threshold (doubles size)
+bool arena_expand_if_needed(Arena* arena, size_t upcoming_alloc_size);
 
 // Allocate from arena with alignment
 void* arena_alloc(Arena* arena, size_t size);
