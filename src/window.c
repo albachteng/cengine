@@ -1,6 +1,7 @@
 #include "window.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <GL/gl.h>
 
 static void error_callback(int error, const char* description) {

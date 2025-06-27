@@ -19,15 +19,15 @@ void physics_world_init(PhysicsWorld *world, ECS *ecs,
   world->verlet_type = ecs_register_component(ecs, sizeof(VerletBody));
   world->collider_type = ecs_register_component(ecs, sizeof(CircleCollider));
 
-  world->gravity = vec3_create(0.0f, -200.0f, 0.0f);
+  world->gravity = (Vec3){0.0f, -200.0f, 0.0f};
   world->damping = PHYSICS_DEFAULT_DAMPING;
   world->collision_iterations = PHYSICS_DEFAULT_COLLISION_ITERATIONS;
 
-  world->boundary_center = vec3_zero();
+  world->boundary_center = (Vec3){0};
   world->boundary_radius = PHYSICS_DEFAULT_BOUNDARY_RADIUS;
   
   // Initialize arena for spatial grid allocations
-  if (!arena_init(&world->spatial_arena, 64 * 1024)) {  // 64KB for spatial nodes
+  if (!arena_init(&world->spatial_arena, 1024 * 1024)) {  // 1MB: ~131,000 EntityNodes (8 bytes each) for spatial grid insertions
     printf("Failed to initialize spatial arena\n");
     return;
   }
@@ -35,7 +35,7 @@ void physics_world_init(PhysicsWorld *world, ECS *ecs,
   // Initialize spatial grid with appropriate cell size
   float cell_size = PHYSICS_SPATIAL_CELL_SIZE;
   float grid_size = world->boundary_radius * 2.2f;
-  Vec3 grid_origin = vec3_create(-grid_size / 2.0f, -grid_size / 2.0f, 0.0f);
+  Vec3 grid_origin = (Vec3){-grid_size / 2.0f, -grid_size / 2.0f, 0.0f};
   spatial_grid_init(&world->spatial_grid, &world->spatial_arena, grid_origin, grid_size, grid_size, cell_size);
 
   g_physics_world = world;
@@ -61,12 +61,16 @@ Entity physics_create_circle(PhysicsWorld *world, Vec3 position, float radius,
 
   Transform *transform =
       (Transform *)ecs_add_component(world->ecs, entity, world->transform_type);
-  *transform = transform_create(position.x, position.y, position.z);
+  // ZII: Transform with position set, scale defaults to (1,1,1) when needed
+  *transform = (Transform){0};
+  transform->position = position;
+  transform->scale = (Vec3){1.0f, 1.0f, 1.0f};
 
   VerletBody *verlet =
       (VerletBody *)ecs_add_component(world->ecs, entity, world->verlet_type);
-  verlet->velocity = vec3_zero();
-  verlet->acceleration = vec3_zero();
+  // ZII: VerletBody already zero-initialized from ecs_add_component
+  verlet->velocity = (Vec3){0};
+  verlet->acceleration = (Vec3){0};
   verlet->old_position = position;
 
   CircleCollider *collider = (CircleCollider *)ecs_add_component(
@@ -134,7 +138,7 @@ void physics_verlet_integration(PhysicsWorld *world, float delta_time) {
     verlet->old_position = current_position;
     transform->position = new_position;
 
-    verlet->acceleration = vec3_zero();
+    verlet->acceleration = (Vec3){0};
   }
 }
 
@@ -265,7 +269,7 @@ bool circle_circle_collision(Vec3 pos1, float r1, Vec3 pos2, float r2,
   } else {
     // Generate random direction when circles are nearly overlapping
     float angle = ((float)rand() / RAND_MAX) * 2.0f * M_PI;
-    *normal = vec3_create(cosf(angle), sinf(angle), 0.0f);
+    *normal = (Vec3){cosf(angle), sinf(angle), 0.0f};
   }
 
   return true;
@@ -342,7 +346,8 @@ void spatial_grid_cleanup(SpatialGrid* grid) {
 void spatial_grid_clear(SpatialGrid* grid) {
   // With arena allocator, we just reset all cell entity lists to NULL
   // The arena will be reset between frames
-  if (!grid->cells) {
+  if (!grid || !grid->cells) {
+    printf("WARNING: spatial_grid_clear called with null grid or cells\n");
     return;  // Grid not initialized
   }
   
@@ -366,11 +371,16 @@ static void spatial_grid_get_cell_coords(SpatialGrid* grid, Vec3 position, int* 
 }
 
 void spatial_grid_insert(SpatialGrid* grid, Arena* arena, Entity entity, Vec3 position, float radius) {
+  if (!grid || !grid->cells || !arena) {
+    printf("ERROR: spatial_grid_insert called with null grid, cells, or arena\n");
+    return;
+  }
+  
   // Calculate which cells this entity overlaps (considering its radius)
   int min_x, min_y, max_x, max_y;
   
-  Vec3 min_pos = vec3_create(position.x - radius, position.y - radius, 0.0f);
-  Vec3 max_pos = vec3_create(position.x + radius, position.y + radius, 0.0f);
+  Vec3 min_pos = (Vec3){position.x - radius, position.y - radius, 0.0f};
+  Vec3 max_pos = (Vec3){position.x + radius, position.y + radius, 0.0f};
   
   spatial_grid_get_cell_coords(grid, min_pos, &min_x, &min_y);
   spatial_grid_get_cell_coords(grid, max_pos, &max_x, &max_y);
@@ -385,6 +395,8 @@ void spatial_grid_insert(SpatialGrid* grid, Arena* arena, Entity entity, Vec3 po
           node->entity = entity;
           node->next = grid->cells[cell_index].entities;
           grid->cells[cell_index].entities = node;
+        } else {
+          printf("ERROR: Failed to allocate EntityNode from arena\n");
         }
       }
     }
@@ -398,8 +410,8 @@ void spatial_grid_get_potential_collisions(SpatialGrid* grid, Entity entity, Vec
   // Calculate which cells this entity overlaps
   int min_x, min_y, max_x, max_y;
   
-  Vec3 min_pos = vec3_create(position.x - radius, position.y - radius, 0.0f);
-  Vec3 max_pos = vec3_create(position.x + radius, position.y + radius, 0.0f);
+  Vec3 min_pos = (Vec3){position.x - radius, position.y - radius, 0.0f};
+  Vec3 max_pos = (Vec3){position.x + radius, position.y + radius, 0.0f};
   
   spatial_grid_get_cell_coords(grid, min_pos, &min_x, &min_y);
   spatial_grid_get_cell_coords(grid, max_pos, &max_x, &max_y);

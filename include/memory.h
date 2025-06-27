@@ -6,7 +6,7 @@
 #include <stdbool.h>
 
 // Arena allocator constants
-#define ARENA_DEFAULT_SIZE (1024 * 1024)  // 1MB default arena
+#define ARENA_DEFAULT_SIZE (16 * 1024 * 1024)  // 16MB: supports 2048 entities with 4 components (~370KB) + spatial grid overhead
 #define ARENA_ALIGNMENT 8                  // 8-byte alignment for most platforms
 #define ARENA_MAX_ARENAS 16               // Maximum number of arenas per pool
 

@@ -6,7 +6,7 @@
 #include <stdint.h>
 #include "memory.h"
 
-#define MAX_ENTITIES 1024
+#define MAX_ENTITIES 2048  // Supports 500+ active entities with room for growth
 #define MAX_COMPONENTS 32
 #define MAX_SYSTEMS 32
 

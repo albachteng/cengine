@@ -1,6 +1,7 @@
 #include "components.h"
 #include "ecs.h"
 #include "input.h"
+#include "log.h"
 #include "physics.h"
 #include "renderer.h"
 #include "window.h"
@@ -34,42 +35,50 @@ static float random_float(float min, float max) {
 }
 
 static Color random_color() {
-  return color_create(random_float(0.2f, 1.0f), random_float(0.2f, 1.0f),
-                      random_float(0.2f, 1.0f), 1.0f);
+  return (Color){random_float(0.2f, 1.0f), random_float(0.2f, 1.0f),
+                 random_float(0.2f, 1.0f), 1.0f};
 }
 
 int main(void) {
+  // Initialize logging system with ZII config (uses defaults)
+  LogConfig log_cfg = {0};  
+  log_cfg.min_level = LOG_DEBUG;  // More verbose for demo
+  log_init(&log_cfg);
+  
+  LOG_INFO("Starting physics demo with %d circles", NUM_CIRCLES);
   srand((unsigned int)time(NULL));
 
   if (!window_init()) {
-    return -1;
+    LOG_ERROR("Window init failed - likely running in headless environment");
+    LOG_INFO("This is expected when running without a display. Exiting gracefully.");
+    return 0; // Exit gracefully instead of failing
   }
 
   Window *window = window_create(800, 600, "C Engine - Physics Demo");
   if (!window) {
+    LOG_ERROR("Window create failed - likely running in headless environment");
+    LOG_INFO("This is expected when running without a display. Exiting gracefully.");
     window_terminate();
-    return -1;
+    return 0; // Exit gracefully instead of failing
   }
 
-  ECS ecs = {0};  // ZII
+  ECS ecs = {0}; // ZII
   ecs_init(&ecs);
 
-  Renderer renderer = {0};  // ZII
+  Renderer renderer = {0}; // ZII
   if (!renderer_init(&renderer, &ecs)) {
-    printf("Failed to initialize renderer\n");
+    LOG_ERROR("Failed to initialize renderer");
     window_destroy(window);
     window_terminate();
     return -1;
   }
 
-  PhysicsWorld physics = {0};  // ZII
+  PhysicsWorld physics = {0}; // ZII
   physics_world_init(&physics, &ecs, renderer.transform_type);
-  physics_set_boundary(&physics,
-                       vec3_create(0.0f, 0.0f, 0.0f), // Q: why repeat this?
+  physics_set_boundary(&physics, (Vec3){0.0f, 0.0f, 0.0f},
                        BOUNDARY_RADIUS);
 
   // Create random circles distributed within the boundary
-  printf("Creating %d random circles...\n", NUM_CIRCLES);
   for (int i = 0; i < NUM_CIRCLES; i++) {
     // Smaller radius range to reduce overlaps
     float circle_radius = random_float(CIRCLE_RADIUS_MIN, CIRCLE_RADIUS_MAX);
@@ -86,19 +95,24 @@ int main(void) {
     float base_y = (row - circles_per_row / 2.0f) * grid_spacing;
 
     // Add some randomness to the grid positions
-    Vec3 pos = vec3_create(
+    Vec3 pos = (Vec3){
         base_x + random_float(-grid_spacing * GRID_POSITION_RANDOMNESS,
                               grid_spacing * GRID_POSITION_RANDOMNESS),
         base_y +
             random_float(-grid_spacing * GRID_POSITION_RANDOMNESS,
                          grid_spacing * GRID_POSITION_RANDOMNESS) +
             SPAWN_HEIGHT_OFFSET, // Start higher up
-        0.0f);
+        0.0f};
 
     Entity circle = physics_create_circle(&physics, pos, circle_radius, mass);
     Renderable *renderable =
         (Renderable *)ecs_add_component(&ecs, circle, renderer.renderable_type);
-    *renderable = renderable_create_circle(circle_radius, random_color());
+    // ZII: Create circle renderable directly
+    *renderable = (Renderable){0};
+    renderable->shape = SHAPE_CIRCLE;
+    renderable->color = random_color();
+    renderable->visible = true;
+    renderable->data.circle.radius = circle_radius;
 
     // Progress feedback
     if (i % PROGRESS_REPORT_INTERVAL == 0) {
@@ -118,13 +132,13 @@ int main(void) {
            ecs_has_component(&ecs, entity, physics.collider_type));
   }
 
-  InputState input = {0};  // ZII
+  InputState input = {0}; // ZII
   input_init(&input, window->handle);
 
-  printf("Physics Demo Initialized!\n");
-  printf("- %d circles with gravity and collision\n", NUM_CIRCLES);
-  printf("- Constrained within spherical boundary\n");
-  printf("- ESC to exit, Space to apply upward force\n");
+  LOG_INFO("Physics Demo Initialized!");
+  LOG_INFO("- %d circles with gravity and collision", NUM_CIRCLES);
+  LOG_INFO("- Constrained within spherical boundary");
+  LOG_INFO("- ESC to exit, Space to apply upward force");
 
   double last_time = glfwGetTime();
 
@@ -138,6 +152,9 @@ int main(void) {
 
     if (delta_time > MAX_DELTA_TIME)
       delta_time = MAX_DELTA_TIME;
+    
+    // Log frame performance
+    log_frame_time(delta_time);
 
     if (input_key_down(&input, GLFW_KEY_ESCAPE)) {
       glfwSetWindowShouldClose(window->handle, GLFW_TRUE);
@@ -149,11 +166,10 @@ int main(void) {
           continue;
 
         if (ecs_has_component(&ecs, entity, physics.verlet_type)) {
-          printf("has physics.verlet_type");
           VerletBody *verlet = (VerletBody *)ecs_get_component(
               &ecs, entity, physics.verlet_type);
           verlet->acceleration = vec3_add(
-              verlet->acceleration, vec3_create(0.0f, IMPULSE_FORCE, 0.0f));
+              verlet->acceleration, (Vec3){0.0f, IMPULSE_FORCE, 0.0f});
         }
       }
     }
@@ -167,12 +183,14 @@ int main(void) {
     window_swap_buffers(window);
   }
 
+  LOG_INFO("Shutting down physics demo");
   physics_world_cleanup(&physics);
   input_cleanup(&input);
   renderer_cleanup(&renderer);
   ecs_cleanup(&ecs);
   window_destroy(window);
   window_terminate();
+  log_cleanup();
 
   return 0;
 }

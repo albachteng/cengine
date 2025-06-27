@@ -61,6 +61,7 @@ ComponentType ecs_register_component(ECS *ecs, size_t component_size) {
   array->capacity = MAX_ENTITIES;
   
   // Allocate component array from arena pool
+  // Each component type gets MAX_ENTITIES slots (e.g., Transform: 2048 * 36 bytes = 72KB)
   size_t total_size = MAX_ENTITIES * component_size;
   array->data = arena_pool_alloc(&ecs->component_arena_pool, total_size);
   array->count = 0;
