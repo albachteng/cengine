@@ -27,6 +27,9 @@
 #define GRID_POSITION_RANDOMNESS 0.3f
 #define SPAWN_HEIGHT_OFFSET 30.0f
 #define MAX_DELTA_TIME 0.033f
+#define MOUSE_INFLUENCE_RADIUS                                                 \
+  100.0f                            // Radius within which mouse affects circles
+#define MOUSE_FORCE_STRENGTH 3000.0f // Strength of mouse drag force (increased significantly)
 #define IMPULSE_FORCE 500.0f
 #define PROGRESS_REPORT_INTERVAL 5
 
@@ -41,23 +44,25 @@ static Color random_color() {
 
 int main(void) {
   // Initialize logging system with ZII config (uses defaults)
-  LogConfig log_cfg = {0};  
-  log_cfg.min_level = LOG_DEBUG;  // More verbose for demo
+  LogConfig log_cfg = {0};
+  log_cfg.min_level = LOG_DEBUG; // More verbose for demo
   log_init(&log_cfg);
-  
+
   LOG_INFO("Starting physics demo with %d circles", NUM_CIRCLES);
   srand((unsigned int)time(NULL));
 
   if (!window_init()) {
     LOG_ERROR("Window init failed - likely running in headless environment");
-    LOG_INFO("This is expected when running without a display. Exiting gracefully.");
+    LOG_INFO(
+        "This is expected when running without a display. Exiting gracefully.");
     return 0; // Exit gracefully instead of failing
   }
 
   Window *window = window_create(800, 600, "C Engine - Physics Demo");
   if (!window) {
     LOG_ERROR("Window create failed - likely running in headless environment");
-    LOG_INFO("This is expected when running without a display. Exiting gracefully.");
+    LOG_INFO(
+        "This is expected when running without a display. Exiting gracefully.");
     window_terminate();
     return 0; // Exit gracefully instead of failing
   }
@@ -75,8 +80,7 @@ int main(void) {
 
   PhysicsWorld physics = {0}; // ZII
   physics_world_init(&physics, &ecs, renderer.transform_type);
-  physics_set_boundary(&physics, (Vec3){0.0f, 0.0f, 0.0f},
-                       BOUNDARY_RADIUS);
+  physics_set_boundary(&physics, (Vec3){0.0f, 0.0f, 0.0f}, BOUNDARY_RADIUS);
 
   // Create random circles distributed within the boundary
   for (int i = 0; i < NUM_CIRCLES; i++) {
@@ -95,14 +99,14 @@ int main(void) {
     float base_y = (row - circles_per_row / 2.0f) * grid_spacing;
 
     // Add some randomness to the grid positions
-    Vec3 pos = (Vec3){
-        base_x + random_float(-grid_spacing * GRID_POSITION_RANDOMNESS,
-                              grid_spacing * GRID_POSITION_RANDOMNESS),
-        base_y +
-            random_float(-grid_spacing * GRID_POSITION_RANDOMNESS,
-                         grid_spacing * GRID_POSITION_RANDOMNESS) +
-            SPAWN_HEIGHT_OFFSET, // Start higher up
-        0.0f};
+    Vec3 pos =
+        (Vec3){base_x + random_float(-grid_spacing * GRID_POSITION_RANDOMNESS,
+                                     grid_spacing * GRID_POSITION_RANDOMNESS),
+               base_y +
+                   random_float(-grid_spacing * GRID_POSITION_RANDOMNESS,
+                                grid_spacing * GRID_POSITION_RANDOMNESS) +
+                   SPAWN_HEIGHT_OFFSET, // Start higher up
+               0.0f};
 
     Entity circle = physics_create_circle(&physics, pos, circle_radius, mass);
     Renderable *renderable =
@@ -139,6 +143,8 @@ int main(void) {
   LOG_INFO("- %d circles with gravity and collision", NUM_CIRCLES);
   LOG_INFO("- Constrained within spherical boundary");
   LOG_INFO("- ESC to exit, Space to apply upward force");
+  LOG_INFO("- Left mouse button to drag circles within %d pixel radius",
+           (int)MOUSE_INFLUENCE_RADIUS);
 
   double last_time = glfwGetTime();
 
@@ -152,7 +158,7 @@ int main(void) {
 
     if (delta_time > MAX_DELTA_TIME)
       delta_time = MAX_DELTA_TIME;
-    
+
     // Log frame performance
     log_frame_time(delta_time);
 
@@ -168,8 +174,86 @@ int main(void) {
         if (ecs_has_component(&ecs, entity, physics.verlet_type)) {
           VerletBody *verlet = (VerletBody *)ecs_get_component(
               &ecs, entity, physics.verlet_type);
-          verlet->acceleration = vec3_add(
-              verlet->acceleration, (Vec3){0.0f, IMPULSE_FORCE, 0.0f});
+          verlet->acceleration =
+              vec3_add(verlet->acceleration, (Vec3){0.0f, IMPULSE_FORCE, 0.0f});
+        }
+      }
+    }
+
+    // Mouse drag interaction
+    if (input_mouse_down(&input, GLFW_MOUSE_BUTTON_LEFT)) {
+      double mouse_x, mouse_y;
+      input_get_mouse_position(&input, &mouse_x, &mouse_y);
+
+      // Convert screen coordinates to world coordinates
+      // Scale to match physics world size (boundary radius = 100 units)
+      // Map screen coordinates to world coordinates proportionally
+      float screen_radius = fminf(window->width, window->height) / 2.0f; // Use smaller dimension
+      float world_radius = BOUNDARY_RADIUS * 1.2f; // Slightly larger than physics boundary
+      float scale_factor = world_radius / screen_radius;
+      
+      float world_x = ((float)mouse_x - (window->width / 2.0f)) * scale_factor;
+      float world_y = ((window->height / 2.0f) - (float)mouse_y) * scale_factor; // Flip Y axis
+
+      Vec3 mouse_pos = (Vec3){world_x, world_y, 0.0f};
+      
+      // Apply force to circles within influence radius
+      for (Entity entity = 1; entity < ecs.next_entity_id; entity++) {
+        if (!ecs_entity_active(&ecs, entity))
+          continue;
+
+        if (!ecs_has_component(&ecs, entity, physics.transform_type) ||
+            !ecs_has_component(&ecs, entity, physics.verlet_type) ||
+            !ecs_has_component(&ecs, entity, physics.collider_type))
+          continue;
+
+        Transform *transform = (Transform *)ecs_get_component(
+            &ecs, entity, physics.transform_type);
+        VerletBody *verlet =
+            (VerletBody *)ecs_get_component(&ecs, entity, physics.verlet_type);
+        CircleCollider *collider = (CircleCollider *)ecs_get_component(
+            &ecs, entity, physics.collider_type);
+
+        // Calculate distance from mouse to circle center
+        Vec3 to_mouse =
+            vec3_add(mouse_pos, vec3_multiply(transform->position, -1.0f));
+        float distance =
+            sqrtf(to_mouse.x * to_mouse.x + to_mouse.y * to_mouse.y);
+
+        // Check if within influence radius (including circle radius for edge
+        // detection)
+        if (distance <= MOUSE_INFLUENCE_RADIUS + collider->radius) {
+          // Wake up the object if it's sleeping
+          if (verlet->is_sleeping) {
+            verlet->is_sleeping = false;
+            verlet->sleep_timer = 0;
+          }
+
+          // Calculate force strength based on distance (closer = stronger)
+          float force_factor =
+              1.0f - (distance / (MOUSE_INFLUENCE_RADIUS + collider->radius));
+          force_factor =
+              force_factor * force_factor; // Square for non-linear falloff
+
+          // Apply force toward mouse position
+          if (distance > 0.1f) { // Avoid division by zero
+            Vec3 force_direction =
+                vec3_multiply(to_mouse, 1.0f / distance); // Normalize
+            
+            // Extra strong force for very close objects (within 30 units)
+            float final_force_strength = MOUSE_FORCE_STRENGTH * force_factor;
+            if (distance < 30.0f) {
+              final_force_strength *= 2.0f; // Double force for close objects
+            }
+            
+            Vec3 mouse_force = vec3_multiply(force_direction, final_force_strength);
+            verlet->acceleration = vec3_add(verlet->acceleration, mouse_force);
+            
+            // For close objects, also counteract gravity more strongly
+            if (distance < 50.0f) {
+              verlet->acceleration = vec3_add(verlet->acceleration, (Vec3){0.0f, 200.0f * force_factor, 0.0f});
+            }
+          }
         }
       }
     }
