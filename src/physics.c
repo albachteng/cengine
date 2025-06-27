@@ -368,7 +368,9 @@ void resolve_circle_collision(Transform *t1, VerletBody *v1, CircleCollider *c1,
   }
   
   // Apply a minimum penetration threshold to reduce micro-corrections
-  if (penetration < PHYSICS_OVERLAP_THRESHOLD * 2.0f) {
+  // Use higher threshold for small circles to reduce jitter
+  float min_threshold = fmaxf(PHYSICS_OVERLAP_THRESHOLD * 4.0f, (c1->radius + c2->radius) * 0.01f);
+  if (penetration < min_threshold) {
     return;  // Skip tiny overlaps that cause jitter
   }
 

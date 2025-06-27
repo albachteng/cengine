@@ -18,14 +18,14 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define NUM_CIRCLES 1000 // Reduced for better visibility and performance
+#define NUM_CIRCLES 1000 // Full scale test - physics behavior now natural
 #define BOUNDARY_RADIUS WORLD_BOUNDARY_RADIUS // Use shared coordinate system
 
 // Demo configuration constants
 #define CIRCLE_RADIUS_MIN 1.0f
 #define CIRCLE_RADIUS_MAX 2.0f
 #define CIRCLE_MASS_MULTIPLIER 0.1f
-#define GRID_SPACING_MULTIPLIER 0.6f // Much tighter grid for better visibility
+#define GRID_SPACING_MULTIPLIER 1.2f // Adequate spacing to prevent initial overlaps
 #define GRID_POSITION_RANDOMNESS 0.3f
 #define SPAWN_HEIGHT_OFFSET 30.0f
 #define MAX_DELTA_TIME 0.033f

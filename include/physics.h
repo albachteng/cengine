@@ -9,17 +9,17 @@
 
 // Physics system constants
 #define PHYSICS_DEFAULT_COLLISION_ITERATIONS 8  // Reduced to prevent over-correction
-#define PHYSICS_DEFAULT_DAMPING 0.98f           // Slightly more damping for stability
+#define PHYSICS_DEFAULT_DAMPING 0.98f           // Light damping to preserve gravity behavior
 #define PHYSICS_DEFAULT_BOUNDARY_RADIUS WORLD_BOUNDARY_RADIUS  // Use shared coordinate system
 #define PHYSICS_SPATIAL_CELL_SIZE 20.0f
 #define PHYSICS_SPATIAL_BUFFER_SIZE 16384  // Larger buffer for 5K+ entities
 #define PHYSICS_MAX_PENETRATION_RATIO 0.8f
-#define PHYSICS_CORRECTION_FACTOR 0.8f
+#define PHYSICS_CORRECTION_FACTOR 0.7f         // Balanced correction factor
 #define PHYSICS_OVERLAP_THRESHOLD 0.001f
-#define PHYSICS_DEFAULT_RESTITUTION 0.8f
-#define PHYSICS_SLEEP_VELOCITY_THRESHOLD 5.0f    // Velocity below which objects sleep
-#define PHYSICS_SLEEP_TIME_THRESHOLD 60          // Frames below threshold before sleeping
-#define PHYSICS_WAKE_VELOCITY_THRESHOLD 10.0f    // Velocity above which sleeping objects wake
+#define PHYSICS_DEFAULT_RESTITUTION 0.6f        // Moderate bounce for natural behavior
+#define PHYSICS_SLEEP_VELOCITY_THRESHOLD 3.0f    // Moderate threshold for small circles
+#define PHYSICS_SLEEP_TIME_THRESHOLD 30          // Faster sleep for stability
+#define PHYSICS_WAKE_VELOCITY_THRESHOLD 5.0f     // Lower wake threshold
 
 typedef struct {
     Vec3 velocity;

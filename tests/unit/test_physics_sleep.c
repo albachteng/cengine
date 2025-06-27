@@ -41,8 +41,9 @@ static char* test_sleep_transition() {
     
     // Set positions for very small movement (below sleep threshold)
     // Physics integration calculates velocity from position difference
+    // For sleep threshold 3.0f, need velocity < 3.0, so position_diff < 3.0 * (1/60) = 0.05
     transform->position = (Vec3){0.0f, 0.0f, 0.0f};
-    verlet->old_position = (Vec3){-0.05f, 0.0f, 0.0f}; // Small movement = low velocity
+    verlet->old_position = (Vec3){-0.03f, 0.0f, 0.0f}; // Small movement = velocity 1.8 (below 3.0 threshold)
     verlet->acceleration = (Vec3){0.0f, 0.0f, 0.0f}; // No external forces
     
     // Simulate frames below threshold
@@ -50,7 +51,7 @@ static char* test_sleep_transition() {
     for (int i = 0; i < PHYSICS_SLEEP_TIME_THRESHOLD - 1; i++) {
         // Keep setting small movement to maintain low velocity
         Vec3 current_pos = transform->position;
-        verlet->old_position = (Vec3){current_pos.x - 0.05f, current_pos.y, current_pos.z};
+        verlet->old_position = (Vec3){current_pos.x - 0.03f, current_pos.y, current_pos.z};
         verlet->acceleration = (Vec3){0.0f, 0.0f, 0.0f}; // Override gravity for test
         
         physics_verlet_integration(&physics_world, delta_time);
@@ -59,7 +60,7 @@ static char* test_sleep_transition() {
     
     // One more frame should trigger sleep
     Vec3 current_pos = transform->position;
-    verlet->old_position = (Vec3){current_pos.x - 0.05f, current_pos.y, current_pos.z};
+    verlet->old_position = (Vec3){current_pos.x - 0.03f, current_pos.y, current_pos.z};
     verlet->acceleration = (Vec3){0.0f, 0.0f, 0.0f};
     physics_verlet_integration(&physics_world, delta_time);
     mu_assert("Should be sleeping after threshold", verlet->is_sleeping);
@@ -123,9 +124,9 @@ static char* test_velocity_threshold() {
     
     // Set position difference for velocity above threshold
     // velocity = position_diff / delta_time, so we need position_diff > threshold * delta_time
-    // For velocity > 5.0, need position_diff > 5.0 * (1/60) = 0.083
+    // For velocity > 3.0, need position_diff > 3.0 * (1/60) = 0.05
     transform->position = (Vec3){0.0f, 0.0f, 0.0f};
-    verlet->old_position = (Vec3){-0.1f, 0.0f, 0.0f}; // Creates velocity = 6.0
+    verlet->old_position = (Vec3){-0.07f, 0.0f, 0.0f}; // Creates velocity = 4.2 (above 3.0 threshold)
     verlet->acceleration = (Vec3){0.0f, 0.0f, 0.0f}; // No external forces
     
     physics_verlet_integration(&physics_world, delta_time);
@@ -133,7 +134,7 @@ static char* test_velocity_threshold() {
     
     // Set position difference for velocity below threshold
     Vec3 current_pos = transform->position;
-    verlet->old_position = (Vec3){current_pos.x - 0.05f, current_pos.y, current_pos.z}; // Creates velocity = 3.0
+    verlet->old_position = (Vec3){current_pos.x - 0.03f, current_pos.y, current_pos.z}; // Creates velocity = 1.8 (below 3.0 threshold)
     verlet->acceleration = (Vec3){0.0f, 0.0f, 0.0f};
     
     physics_verlet_integration(&physics_world, delta_time);
