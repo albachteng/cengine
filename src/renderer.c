@@ -1,4 +1,5 @@
 #include "renderer.h"
+#include "coordinate_system.h"
 #include <GL/gl.h>
 #include <math.h>
 #include <stdio.h>
@@ -9,10 +10,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-// Renderer constants
-#define RENDER_COORD_SCALE_X 400.0f
-#define RENDER_COORD_SCALE_Y 300.0f
-#define RENDER_SCALE_FACTOR 200.0f
+// Renderer constants - now sourced from coordinate_system.h
+// RENDER_COORD_SCALE_X, RENDER_COORD_SCALE_Y, RENDER_SCALE_FACTOR are defined in coordinate_system.h
 #define RENDER_TRIANGLE_SCALE 0.5f
 #define CIRCLE_SEGMENTS 16
 
@@ -34,6 +33,13 @@ int renderer_init(Renderer *renderer, ECS *ecs) {
 
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+  // Set up OpenGL coordinate system for proper rendering
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);  // Normalized device coordinates
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
 
   return 1;
 }

@@ -4,14 +4,15 @@
 #include "components.h"
 #include "ecs.h"
 #include "memory.h"
+#include "coordinate_system.h"
 #include <stdbool.h>
 
 // Physics system constants
 #define PHYSICS_DEFAULT_COLLISION_ITERATIONS 8  // Reduced to prevent over-correction
 #define PHYSICS_DEFAULT_DAMPING 0.98f           // Slightly more damping for stability
-#define PHYSICS_DEFAULT_BOUNDARY_RADIUS 300.0f
+#define PHYSICS_DEFAULT_BOUNDARY_RADIUS WORLD_BOUNDARY_RADIUS  // Use shared coordinate system
 #define PHYSICS_SPATIAL_CELL_SIZE 20.0f
-#define PHYSICS_SPATIAL_BUFFER_SIZE 4096  // Static buffer for potential collision candidates per entity
+#define PHYSICS_SPATIAL_BUFFER_SIZE 16384  // Larger buffer for 5K+ entities
 #define PHYSICS_MAX_PENETRATION_RATIO 0.8f
 #define PHYSICS_CORRECTION_FACTOR 0.8f
 #define PHYSICS_OVERLAP_THRESHOLD 0.001f

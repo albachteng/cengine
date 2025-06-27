@@ -1,4 +1,5 @@
 #include "components.h"
+#include "coordinate_system.h"
 #include "ecs.h"
 #include "input.h"
 #include "log.h"
@@ -6,6 +7,7 @@
 #include "renderer.h"
 #include "window.h"
 #include <GL/gl.h>
+#include <GL/glu.h>
 #include <GLFW/glfw3.h>
 #include <math.h>
 #include <stdio.h>
@@ -16,22 +18,23 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define NUM_CIRCLES 500
-#define BOUNDARY_RADIUS 100.0f
+#define NUM_CIRCLES 1000 // Reduced for better visibility and performance
+#define BOUNDARY_RADIUS WORLD_BOUNDARY_RADIUS // Use shared coordinate system
 
 // Demo configuration constants
-#define CIRCLE_RADIUS_MIN 2.0f
-#define CIRCLE_RADIUS_MAX 5.0f
+#define CIRCLE_RADIUS_MIN 1.0f
+#define CIRCLE_RADIUS_MAX 2.0f
 #define CIRCLE_MASS_MULTIPLIER 0.1f
-#define GRID_SPACING_MULTIPLIER 1.5f
+#define GRID_SPACING_MULTIPLIER 0.6f // Much tighter grid for better visibility
 #define GRID_POSITION_RANDOMNESS 0.3f
 #define SPAWN_HEIGHT_OFFSET 30.0f
 #define MAX_DELTA_TIME 0.033f
 #define MOUSE_INFLUENCE_RADIUS                                                 \
-  100.0f                            // Radius within which mouse affects circles
-#define MOUSE_FORCE_STRENGTH 3000.0f // Strength of mouse drag force (increased significantly)
+  100.0f // Radius within which mouse affects circles
+#define MOUSE_FORCE_STRENGTH                                                   \
+  3000.0f // Strength of mouse drag force (increased significantly)
 #define IMPULSE_FORCE 500.0f
-#define PROGRESS_REPORT_INTERVAL 5
+#define PROGRESS_REPORT_INTERVAL 50 // Less frequent reports for 5K objects
 
 static float random_float(float min, float max) {
   return min + ((float)rand() / RAND_MAX) * (max - min);
@@ -58,7 +61,8 @@ int main(void) {
     return 0; // Exit gracefully instead of failing
   }
 
-  Window *window = window_create(800, 600, "C Engine - Physics Demo");
+  Window *window =
+      window_create(1200, 900, "C Engine - Physics Demo (5K Scale Test)");
   if (!window) {
     LOG_ERROR("Window create failed - likely running in headless environment");
     LOG_INFO(
@@ -188,15 +192,18 @@ int main(void) {
       // Convert screen coordinates to world coordinates
       // Scale to match physics world size (boundary radius = 100 units)
       // Map screen coordinates to world coordinates proportionally
-      float screen_radius = fminf(window->width, window->height) / 2.0f; // Use smaller dimension
-      float world_radius = BOUNDARY_RADIUS * 1.2f; // Slightly larger than physics boundary
+      float screen_radius =
+          fminf(window->width, window->height) / 2.0f; // Use smaller dimension
+      float world_radius =
+          BOUNDARY_RADIUS * 1.2f; // Slightly larger than physics boundary
       float scale_factor = world_radius / screen_radius;
-      
+
       float world_x = ((float)mouse_x - (window->width / 2.0f)) * scale_factor;
-      float world_y = ((window->height / 2.0f) - (float)mouse_y) * scale_factor; // Flip Y axis
+      float world_y = ((window->height / 2.0f) - (float)mouse_y) *
+                      scale_factor; // Flip Y axis
 
       Vec3 mouse_pos = (Vec3){world_x, world_y, 0.0f};
-      
+
       // Apply force to circles within influence radius
       for (Entity entity = 1; entity < ecs.next_entity_id; entity++) {
         if (!ecs_entity_active(&ecs, entity))
@@ -239,19 +246,22 @@ int main(void) {
           if (distance > 0.1f) { // Avoid division by zero
             Vec3 force_direction =
                 vec3_multiply(to_mouse, 1.0f / distance); // Normalize
-            
+
             // Extra strong force for very close objects (within 30 units)
             float final_force_strength = MOUSE_FORCE_STRENGTH * force_factor;
             if (distance < 30.0f) {
               final_force_strength *= 2.0f; // Double force for close objects
             }
-            
-            Vec3 mouse_force = vec3_multiply(force_direction, final_force_strength);
+
+            Vec3 mouse_force =
+                vec3_multiply(force_direction, final_force_strength);
             verlet->acceleration = vec3_add(verlet->acceleration, mouse_force);
-            
+
             // For close objects, also counteract gravity more strongly
             if (distance < 50.0f) {
-              verlet->acceleration = vec3_add(verlet->acceleration, (Vec3){0.0f, 200.0f * force_factor, 0.0f});
+              verlet->acceleration =
+                  vec3_add(verlet->acceleration,
+                           (Vec3){0.0f, 200.0f * force_factor, 0.0f});
             }
           }
         }
@@ -262,6 +272,18 @@ int main(void) {
 
     renderer_begin_frame(&renderer);
     ecs_update_systems(&ecs, delta_time);
+
+    // Render boundary circle for visual reference
+    glColor4f(0.5f, 0.5f, 0.5f, 0.3f); // Semi-transparent gray
+    glBegin(GL_LINE_LOOP);
+    for (int i = 0; i < 64; i++) {
+      float angle = 2.0f * M_PI * i / 64.0f;
+      float x = cosf(angle) * BOUNDARY_RADIUS / RENDER_SCALE_FACTOR;
+      float y = sinf(angle) * BOUNDARY_RADIUS / RENDER_SCALE_FACTOR;
+      glVertex2f(x, y);
+    }
+    glEnd();
+
     renderer_end_frame(&renderer);
 
     window_swap_buffers(window);

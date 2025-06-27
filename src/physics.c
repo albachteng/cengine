@@ -27,8 +27,8 @@ void physics_world_init(PhysicsWorld *world, ECS *ecs,
   world->boundary_radius = PHYSICS_DEFAULT_BOUNDARY_RADIUS;
   
   // Initialize arena for spatial grid allocations
-  // 4MB initial: ~524,000 EntityNodes (8 bytes each) for spatial grid insertions - should handle 500+ entities across multiple cells
-  if (!arena_init(&world->spatial_arena, 4 * 1024 * 1024)) {
+  // 16MB initial: ~2M EntityNodes (8 bytes each) for spatial grid insertions - should handle 5000+ entities across multiple cells
+  if (!arena_init(&world->spatial_arena, 16 * 1024 * 1024)) {
     printf("Failed to initialize spatial arena\n");
     return;
   }

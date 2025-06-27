@@ -4,7 +4,7 @@
 int tests_run = 0;
 
 static char* test_ecs_init() {
-    ECS ecs;
+    ECS ecs = {0};  // ZII pattern
     ecs_init(&ecs);
     
     mu_assert("ECS should start with entity ID 1", ecs.next_entity_id == 1);
@@ -16,7 +16,7 @@ static char* test_ecs_init() {
 }
 
 static char* test_entity_creation() {
-    ECS ecs;
+    ECS ecs = {0};  // ZII pattern
     ecs_init(&ecs);
     
     Entity entity1 = ecs_create_entity(&ecs);
@@ -32,7 +32,7 @@ static char* test_entity_creation() {
 }
 
 static char* test_entity_destroy() {
-    ECS ecs;
+    ECS ecs = {0};  // ZII pattern
     ecs_init(&ecs);
     
     Entity entity = ecs_create_entity(&ecs);
@@ -46,7 +46,7 @@ static char* test_entity_destroy() {
 }
 
 static char* test_component_registration() {
-    ECS ecs;
+    ECS ecs = {0};  // ZII pattern
     ecs_init(&ecs);
     
     ComponentType pos_type = ecs_register_component(&ecs, sizeof(float) * 3);
@@ -65,7 +65,7 @@ typedef struct {
 } Position;
 
 static char* test_component_operations() {
-    ECS ecs;
+    ECS ecs = {0};  // ZII pattern
     ecs_init(&ecs);
     
     Entity entity = ecs_create_entity(&ecs);
@@ -102,7 +102,7 @@ static void test_system_func(float delta_time) {
 }
 
 static char* test_system_registration() {
-    ECS ecs;
+    ECS ecs = {0};  // ZII pattern
     ecs_init(&ecs);
     
     ComponentMask required = (1ULL << 0) | (1ULL << 1);

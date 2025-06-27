@@ -4,8 +4,7 @@
 #include <string.h>
 
 void ecs_init(ECS *ecs) {
-  // ZII: ecs should already be zero-initialized
-  memset(ecs, 0, sizeof(ECS));
+  // ZII: ecs should already be zero-initialized, don't memset over it
   ecs->next_entity_id = 1;
   
   // Initialize arena pool for component allocations
