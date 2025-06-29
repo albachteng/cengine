@@ -1,5 +1,5 @@
 #include "../minunit.h"
-#include "../../include/ecs.h"
+#include "core/ecs.h"
 
 int tests_run = 0;
 

@@ -1,7 +1,7 @@
 #include "../minunit.h"
-#include "../../include/physics.h"
-#include "../../include/ecs.h"
-#include "../../include/components.h"
+#include "core/physics.h"
+#include "core/ecs.h"
+#include "core/components.h"
 #include <math.h>
 
 int tests_run = 0;

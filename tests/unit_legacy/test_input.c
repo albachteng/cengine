@@ -1,5 +1,5 @@
 #include "../minunit.h"
-#include "../../include/input.h"
+#include "core/input.h"
 
 int tests_run = 0;
 

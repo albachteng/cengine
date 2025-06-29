@@ -1,0 +1,193 @@
+# CEngine Development Changelog
+
+## Version 0.1.1 - Directory Restructure and Multi-Map Architecture
+**Date**: 2024-12-29
+
+### Major Changes
+- **Directory Restructure**: Reorganized codebase to match game engine architecture
+  - Core engine files moved to `src/core/` and `include/core/`
+  - Created dedicated directories for `game/`, `ai/`, `story/`, `generation/`
+  - Established asset pipeline with `assets/sprites/`, `assets/maps/`, `assets/data/`
+  - Set up tools directory for future development utilities
+
+### Technical Decisions
+- **Multi-Map Support**: Designed abstract map interface to support:
+  - Square grids (traditional grid-based movement)
+  - Hexagonal grids (six-directional tactical movement)
+  - Future expansion to Voronoi regions and custom map shapes
+- **Test-Driven Development**: Established TDD process with comprehensive testing requirements
+- **Asset Pipeline Strategy**: Start with colored squares, design for sprite integration
+
+### Architecture Changes
+- **Map System Design**: Unified interface for multiple coordinate systems
+- **Development Process**: Documentation-first approach with changelog maintenance
+- **Testing Strategy**: Unit, integration, performance, and cross-mode compatibility testing
+
+### File Structure Changes
+```
+src/core/           # Core engine systems (ECS, physics, rendering, input)
+src/game/           # Game-specific systems (maps, units, factions)
+src/ai/             # AI and pathfinding systems
+src/story/          # Narrative and progression systems
+src/generation/     # Procedural generation systems
+assets/             # Game assets (sprites, maps, data)
+tests/unit/         # New unit test structure
+tests/integration/  # Integration test framework
+tools/              # Development tools and editors
+```
+
+### Legacy Preservation
+- Moved existing unit tests to `tests/unit_legacy/` for reference
+- Preserved physics demo as `src/demos/physics_demo.c`
+- Maintained all existing core functionality while restructuring
+
+---
+
+## Version 0.1.0 - Engine Foundation Pivot
+**Date**: 2024-12-XX
+
+### Major Changes
+- **Architecture Shift**: Pivoted from physics simulation engine to grid-based game engine
+- **Target Games Defined**: Train heist tactical and fantasy dungeon crawler
+- **Roadmap Created**: 12-week development plan with clear milestones
+
+### Technical Decisions
+- **Map System**: Hybrid ECS-Grid approach for performance and flexibility
+- **Turn-Based Architecture**: State machine with action queuing for clear gameplay flow
+- **Procedural Generation**: Incremental approach starting with rules, building to WFC
+- **C/C++ Split**: Core engine in C, tools and complex features in C++ where beneficial
+
+### Core Systems Planned
+- Grid-based map system with multiple terrain types
+- Turn-based game state management
+- AI pathfinding with A* algorithm
+- Sprite rendering and animation system
+- Story graph with conditional progression
+- Procedural map generation with Wave Function Collapse
+
+### Physics System Role Change
+- Shifted from primary system to effects-only support
+- Retained for explosions, particles, and environmental interactions
+- Integrated with turn-based resolution for visual polish
+
+---
+
+## Version 0.1.2 - Core Map System Implementation
+**Date**: 2024-12-29
+
+### Major Features Implemented
+- **Multi-Modal Map System**: Abstract map interface supporting different coordinate systems
+  - Square grid implementation with 8-directional movement
+  - Hexagonal grid implementation (pointy and flat-top) with 6-directional movement
+  - Unified coordinate conversion and neighbor finding
+  - Future-ready for Voronoi regions and custom maps
+
+### Technical Implementation
+- **Map Data Structure**: Efficient 2D array storage with O(1) tile access
+- **Coordinate Systems**: Support for grid and hex coordinates with proper conversions
+- **Terrain System**: 9 terrain types with movement costs and defense bonuses
+- **Occupancy System**: Unit placement and movement validation
+- **Navigation Foundation**: Distance calculation and movement validation
+
+### Code Architecture
+- **Header Structure**: `include/game/map_system.h` with comprehensive API
+- **Implementation**: `src/game/map_system.c` with modular coordinate system support
+- **Testing**: Comprehensive unit tests covering all map modes and features
+- **Memory Management**: ZII pattern with proper cleanup functions
+
+### Technical Decisions
+- **Hybrid Storage**: Map tiles as array, units as ECS entities for optimal performance
+- **Cube Coordinates**: Used internally for hex grids for easier calculations
+- **Movement Costs**: Terrain-based movement system for strategic gameplay
+- **Validation**: Comprehensive bounds checking and movement validation
+
+### Test Coverage
+- Map initialization and cleanup
+- Grid and hex coordinate systems
+- Neighbor finding and distance calculation
+- Terrain system and movement validation
+- Unit occupancy and movement restrictions
+
+### Files Added
+```
+include/game/map_system.h    # Map system API and types
+src/game/map_system.c        # Map system implementation  
+tests/unit/test_map_system.c # Comprehensive unit tests
+```
+
+### Next Steps
+- ✅ Grid rendering system
+- ✅ Player movement input  
+- ✅ Map mode switching
+- Camera system aligned to map modes
+
+---
+
+## Version 0.1.3 - Build System Fixes and Grid Demo
+**Date**: 2024-12-29
+
+### Major Fixes
+- **Build System Compatibility**: Fixed include paths and function calls for new directory structure
+- **Main Engine Restored**: Updated `src/main.c` to work with core/ includes and ZII pattern
+- **Grid Demo Implementation**: Complete interactive grid/hex demo with multi-modal support
+
+### Technical Implementation
+- **Include Path Updates**: All source files now use proper `core/` prefixed includes
+- **ZII Pattern Compliance**: Removed deprecated helper functions, use direct struct initialization
+- **Legacy Test Status**: Physics sleep tests failing due to threshold changes (expected)
+
+### Grid Demo Features
+- **Multi-Modal Rendering**: Switch between grid and hex modes with TAB key
+- **Interactive Movement**: WASD/arrows for grid, WASD+Q/E for hex navigation
+- **Terrain Visualization**: 9 terrain types with color-coded tiles
+- **Movement Validation**: Proper movement costs and collision detection
+- **Debug Information**: F1 toggles real-time position and terrain info
+
+### Build Targets Status
+- ✅ `make run` - Main engine works (basic triangle/quad demo)
+- ✅ `make run-physics` - Physics demo fully functional
+- ✅ `make run-grid` - New grid demo with map system
+- ⚠️ `make test-legacy` - Physics sleep tests failing (expected, deprecated)
+- ✅ `make test` - New map system tests all pass
+
+### Files Added/Modified
+```
+src/demos/grid_demo.c        # Interactive grid/hex demo
+src/main.c                   # Fixed include paths and ZII compliance
+```
+
+### Technical Decisions
+- **Legacy Test Status**: Keeping failed physics sleep tests as reference, focus on new test suite
+- **Demo-First Approach**: Grid demo serves as integration test for map system
+- **Incremental Migration**: Main engine kept simple, complexity in dedicated demos
+
+---
+
+## Version 0.1.4 - Grid Centering and Coordinate System Fix
+**Date**: 2024-12-29
+
+### Issue Resolution
+- **Grid Centering Fixed**: Grid now properly centered in window using calculated origin offset
+- **Coordinate System Tuning**: Adjusted tile sizes to work properly with renderer coordinate scaling
+- **Visibility Improvements**: Optimized tile and map dimensions for clear rendering
+
+### Technical Implementation
+- **Map Origin Calculation**: Set map origin to `(-map_width/2, -map_height/2)` for center positioning
+- **Coordinate Scaling**: Account for `RENDER_COORD_SCALE` (120.0f) division in renderer
+- **Tile Size Optimization**: Use 60.0f world units for tiles to ensure visibility after scaling
+- **Debug Infrastructure**: Added coordinate debugging for troubleshooting rendering issues
+
+### Grid Demo Improvements
+- **Centered Rendering**: Map tiles now render in center of window instead of top-right corner
+- **Proper Scaling**: Tiles sized appropriately for OpenGL coordinate system (-1 to +1)
+- **Debug Output**: Coordinate calculation verification and render loop debugging
+- **Map Mode Consistency**: Centering applied to both grid and hex mode switches
+
+### Coordinate System Understanding
+- **World Coordinates**: Map uses world coordinates (e.g., -90 to +90 for 3x3 map with 60-unit tiles)
+- **Screen Coordinates**: Renderer divides by 120.0f, mapping world to OpenGL (-0.75 to +0.75)
+- **Visibility Range**: OpenGL ortho projection uses -1 to +1, so scaled coordinates fit properly
+
+---
+
+*This changelog tracks major development milestones, architectural decisions, and technical implementations.*

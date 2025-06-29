@@ -1,27 +1,37 @@
 #include <stdio.h>
 #include <GL/gl.h>
 #include <GLFW/glfw3.h>
-#include "window.h"
-#include "ecs.h"
-#include "components.h"
-#include "renderer.h"
-#include "input.h"
+#include "core/window.h"
+#include "core/ecs.h"
+#include "core/components.h"
+#include "core/renderer.h"
+#include "core/input.h"
 
 int main(void) {
+    printf("Starting C Engine...\n");
+    
     if (!window_init()) {
+        printf("Failed to initialize window system\n");
         return -1;
     }
     
+    printf("Window system initialized\n");
+    
     Window* window = window_create(800, 600, "C Engine");
     if (!window) {
+        printf("Failed to create window\n");
         window_terminate();
         return -1;
     }
     
-    ECS ecs;
+    printf("Window created\n");
+    
+    ECS ecs = {0};  // ZII pattern
     ecs_init(&ecs);
     
-    Renderer renderer;
+    printf("ECS initialized\n");
+    
+    Renderer renderer = {0};  // ZII pattern
     if (!renderer_init(&renderer, &ecs)) {
         printf("Failed to initialize renderer\n");
         window_destroy(window);
@@ -29,19 +39,33 @@ int main(void) {
         return -1;
     }
     
+    printf("Renderer initialized\n");
+    
     Entity triangle_entity = ecs_create_entity(&ecs);
     Transform* triangle_transform = (Transform*)ecs_add_component(&ecs, triangle_entity, renderer.transform_type);
-    *triangle_transform = transform_create(0.0f, 0.0f, 0.0f);
+    *triangle_transform = (Transform){0};
+    triangle_transform->position = (Vec3){0.0f, 0.0f, 0.0f};
+    triangle_transform->scale = vec3_one();
     
     Renderable* triangle_renderable = (Renderable*)ecs_add_component(&ecs, triangle_entity, renderer.renderable_type);
-    *triangle_renderable = renderable_create_triangle(color_red());
+    *triangle_renderable = (Renderable){0};
+    triangle_renderable->shape = SHAPE_TRIANGLE;
+    triangle_renderable->color = color_red();
+    triangle_renderable->visible = true;
     
     Entity quad_entity = ecs_create_entity(&ecs);
     Transform* quad_transform = (Transform*)ecs_add_component(&ecs, quad_entity, renderer.transform_type);
-    *quad_transform = transform_create(100.0f, 0.0f, 0.0f);
+    *quad_transform = (Transform){0};
+    quad_transform->position = (Vec3){100.0f, 0.0f, 0.0f};
+    quad_transform->scale = vec3_one();
     
     Renderable* quad_renderable = (Renderable*)ecs_add_component(&ecs, quad_entity, renderer.renderable_type);
-    *quad_renderable = renderable_create_quad(100.0f, 80.0f, color_blue());
+    *quad_renderable = (Renderable){0};
+    quad_renderable->shape = SHAPE_QUAD;
+    quad_renderable->color = color_blue();
+    quad_renderable->visible = true;
+    quad_renderable->data.quad.width = 100.0f;
+    quad_renderable->data.quad.height = 80.0f;
     
     InputState input;
     input_init(&input, window->handle);

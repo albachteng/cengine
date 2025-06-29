@@ -1,6 +1,6 @@
 #include "../minunit.h"
-#include "../../include/components.h"
-#include "../../include/ecs.h"
+#include "core/components.h"
+#include "core/ecs.h"
 
 int tests_run = 0;
 

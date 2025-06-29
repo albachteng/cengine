@@ -1,7 +1,7 @@
 #include "../minunit.h"
-#include "../../include/coordinate_system.h"
-#include "../../include/physics.h"
-#include "../../include/renderer.h"
+#include "core/coordinate_system.h"
+#include "core/physics.h"
+#include "core/renderer.h"
 
 int tests_run = 0;
 
