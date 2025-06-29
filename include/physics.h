@@ -17,7 +17,7 @@
 #define PHYSICS_CORRECTION_FACTOR 0.7f         // Balanced correction factor
 #define PHYSICS_OVERLAP_THRESHOLD 0.001f
 #define PHYSICS_DEFAULT_RESTITUTION 0.6f        // Moderate bounce for natural behavior
-#define PHYSICS_SLEEP_VELOCITY_THRESHOLD 3.0f    // Moderate threshold for small circles
+#define PHYSICS_SLEEP_VELOCITY_THRESHOLD 1.0f    // Lower threshold for better settling
 #define PHYSICS_SLEEP_TIME_THRESHOLD 30          // Faster sleep for stability
 #define PHYSICS_WAKE_VELOCITY_THRESHOLD 5.0f     // Lower wake threshold
 

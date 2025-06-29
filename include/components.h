@@ -106,6 +106,7 @@ Vec2 vec2_normalize(Vec2 v);
 static inline Vec3 vec3_one(void) { return (Vec3){1.0f, 1.0f, 1.0f}; }
 Vec3 vec3_add(Vec3 a, Vec3 b);
 Vec3 vec3_multiply(Vec3 v, float scalar);
+float vec3_dot(Vec3 a, Vec3 b);
 
 // Conversion utilities
 static inline Vec3 vec2_to_vec3(Vec2 v, float z) { return (Vec3){v.x, v.y, z}; }

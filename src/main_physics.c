@@ -18,7 +18,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-#define NUM_CIRCLES 1000 // Full scale test - physics behavior now natural
+#define NUM_CIRCLES 1000 // Full scale test with improved collision resolution
 #define BOUNDARY_RADIUS WORLD_BOUNDARY_RADIUS // Use shared coordinate system
 
 // Demo configuration constants

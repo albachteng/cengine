@@ -77,3 +77,7 @@ Vec3 vec3_add(Vec3 a, Vec3 b) {
 Vec3 vec3_multiply(Vec3 v, float scalar) {
     return (Vec3){v.x * scalar, v.y * scalar, v.z * scalar};
 }
+
+float vec3_dot(Vec3 a, Vec3 b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
