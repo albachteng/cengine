@@ -190,4 +190,75 @@ src/main.c                   # Fixed include paths and ZII compliance
 
 ---
 
+---
+
+## Version 0.1.5 - Centralized Display Configuration and Hex Bounds Fix
+**Date**: 2024-12-29
+
+### Major Features Implemented
+- **Centralized Display Configuration**: Created `include/core/display_config.h` for unified window and map sizing
+- **Hex Grid Bounds Fix**: Properly calculate hex grid spatial requirements to prevent cutoff
+- **Dynamic Tile Sizing**: Automatic tile size calculation based on window dimensions and map type
+- **Future-Ready Architecture**: Designed for window resizing support
+
+### Technical Implementation
+- **Display Configuration Header**: Centralized constants for window size, tile sizing, and map bounds
+- **Hex Spatial Calculations**: Proper width/height factors (sqrt(3), 0.75) for hex grid layout
+- **Automatic Sizing Functions**: Calculate appropriate tile sizes for given window and map dimensions
+- **Bounds Validation**: Check if maps fit within world coordinate system limits
+
+### Key Constants and Configuration
+```c
+// Window Configuration
+#define WINDOW_DEFAULT_WIDTH    1024
+#define WINDOW_DEFAULT_HEIGHT   768
+
+// Tile Sizing
+#define TILE_SIZE_GRID          50.0f   // Square tiles
+#define TILE_SIZE_HEX           45.0f   // Hex tiles (smaller for better fit)
+#define MAP_PADDING_WORLD       20.0f   // Border padding
+
+// Hex Layout Constants  
+#define HEX_WIDTH_FACTOR        1.732f  // sqrt(3)
+#define HEX_HEIGHT_FACTOR       0.75f   // 3/4 overlap
+```
+
+### Utility Functions Added
+- `calculate_map_world_width()` - Compute required world width for map
+- `calculate_map_world_height()` - Compute required world height for map  
+- `calculate_tile_size_for_window()` - Auto-size tiles to fit window
+- `map_fits_in_world_bounds()` - Validate map fits in coordinate system
+
+### Grid Demo Improvements
+- **5x5 Map**: Increased from 3x3 for better testing of hex layouts
+- **Dynamic Sizing**: Tiles automatically sized based on window dimensions
+- **Proper Centering**: Maps centered with appropriate padding for both grid and hex modes
+- **Debug Output**: Shows calculated bounds, tile sizes, and fit validation
+
+### Architecture Benefits
+- **Future Window Resizing**: Foundation laid for dynamic window resize support
+- **Consistent Scaling**: All map types use same sizing calculation framework
+- **Easy Maintenance**: Single location for all display-related constants
+- **Mode-Specific Optimization**: Different tile sizes optimized for grid vs hex rendering
+
+### Files Added/Modified
+```
+include/core/display_config.h    # New centralized display configuration
+src/demos/grid_demo.c           # Updated to use centralized config
+```
+
+### Technical Decisions
+- **Hex Tile Size**: Slightly smaller (45.0f vs 50.0f) to accommodate hex width requirements
+- **Dynamic Calculation**: Runtime tile size calculation rather than fixed constants
+- **Padding System**: Consistent world-space padding around all map types
+- **Bounds Checking**: Validate maps fit within coordinate system limits
+
+### Test Results
+- ✅ Grid mode: 5x5 map with 25 tiles, tile_size=20.0, fits bounds
+- ✅ Hex mode: Properly calculated spatial requirements prevent circle cutoff  
+- ✅ Mode switching: Smooth transitions between grid and hex with appropriate sizing
+- ✅ Movement: All movement controls work correctly in both modes
+
+---
+
 *This changelog tracks major development milestones, architectural decisions, and technical implementations.*

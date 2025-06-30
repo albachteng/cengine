@@ -198,8 +198,12 @@ bool map_coord_valid(const Map* map, MapCoord coord) {
                    
         case MAP_HEX_POINTY:
         case MAP_HEX_FLAT: {
-            // Convert hex to offset coordinates for bounds checking
+            // For hex grids, we restrict to coordinates that directly correspond
+            // to our offset storage grid. This prevents players from walking
+            // to valid hex coordinates that don't have actual tiles.
             MapCoord offset = hex_cube_to_offset(coord);
+            
+            // Simple bounds check on the offset coordinates  
             return offset.x >= 0 && offset.x < map->width && 
                    offset.y >= 0 && offset.y < map->height;
         }
