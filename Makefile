@@ -47,6 +47,7 @@ ALL_OBJECTS = $(LIB_OBJECTS) $(DEMO_OBJECTS) $(MAIN_OBJECTS)
 TARGET = $(BINDIR)/cengine
 PHYSICS_TARGET = $(BINDIR)/physics_demo
 GRID_TARGET = $(BINDIR)/grid_demo
+TURNBASED_TARGET = $(BINDIR)/turn_based_demo
 
 # Test sources
 LEGACY_TEST_SOURCES = $(wildcard $(TESTDIR)/unit_legacy/*.c)
@@ -61,7 +62,7 @@ INTEGRATION_TEST_SOURCES = $(wildcard $(TESTDIR)/integration/*.c)
 INTEGRATION_TEST_OBJECTS = $(INTEGRATION_TEST_SOURCES:$(TESTDIR)/integration/%.c=$(OBJDIR)/int_test_%.o)
 INTEGRATION_TEST_TARGETS = $(INTEGRATION_TEST_SOURCES:$(TESTDIR)/integration/%.c=$(BINDIR)/int_%)
 
-.PHONY: all clean run test test-legacy test-integration physics run-physics grid run-grid clean-test tools
+.PHONY: all clean run test test-legacy test-integration physics run-physics grid run-grid turnbased run-turnbased clean-test tools
 
 all: $(TARGET)
 
@@ -76,6 +77,10 @@ $(PHYSICS_TARGET): $(OBJDIR)/demo_physics_demo.o $(LIB_OBJECTS) | $(BINDIR)
 grid: $(GRID_TARGET)
 $(GRID_TARGET): $(OBJDIR)/demo_grid_demo.o $(LIB_OBJECTS) | $(BINDIR)
 	$(CC) $(OBJDIR)/demo_grid_demo.o $(LIB_OBJECTS) -o $@ $(LDFLAGS)
+
+turnbased: $(TURNBASED_TARGET)
+$(TURNBASED_TARGET): $(OBJDIR)/demo_turn_based_demo.o $(LIB_OBJECTS) | $(BINDIR)
+	$(CC) $(OBJDIR)/demo_turn_based_demo.o $(LIB_OBJECTS) -o $@ $(LDFLAGS)
 
 # Object file rules
 $(OBJDIR)/core_%.o: $(SRCDIR)/core/%.c | $(OBJDIR)
@@ -115,6 +120,9 @@ run-physics: $(PHYSICS_TARGET)
 
 run-grid: $(GRID_TARGET)
 	./$(GRID_TARGET)
+
+run-turnbased: $(TURNBASED_TARGET)
+	./$(TURNBASED_TARGET)
 
 # Test targets
 test: $(TEST_TARGETS)
