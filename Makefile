@@ -48,6 +48,7 @@ TARGET = $(BINDIR)/cengine
 PHYSICS_TARGET = $(BINDIR)/physics_demo
 GRID_TARGET = $(BINDIR)/grid_demo
 TURNBASED_TARGET = $(BINDIR)/turn_based_demo
+HEXTURN_TARGET = $(BINDIR)/hex_turn_demo
 
 # Test sources
 LEGACY_TEST_SOURCES = $(wildcard $(TESTDIR)/unit_legacy/*.c)
@@ -62,7 +63,7 @@ INTEGRATION_TEST_SOURCES = $(wildcard $(TESTDIR)/integration/*.c)
 INTEGRATION_TEST_OBJECTS = $(INTEGRATION_TEST_SOURCES:$(TESTDIR)/integration/%.c=$(OBJDIR)/int_test_%.o)
 INTEGRATION_TEST_TARGETS = $(INTEGRATION_TEST_SOURCES:$(TESTDIR)/integration/%.c=$(BINDIR)/int_%)
 
-.PHONY: all clean run test test-legacy test-integration physics run-physics grid run-grid turnbased run-turnbased clean-test tools
+.PHONY: all clean run test test-legacy test-integration physics run-physics grid run-grid turnbased run-turnbased hexturn run-hexturn clean-test tools
 
 all: $(TARGET)
 
@@ -81,6 +82,10 @@ $(GRID_TARGET): $(OBJDIR)/demo_grid_demo.o $(LIB_OBJECTS) | $(BINDIR)
 turnbased: $(TURNBASED_TARGET)
 $(TURNBASED_TARGET): $(OBJDIR)/demo_turn_based_demo.o $(LIB_OBJECTS) | $(BINDIR)
 	$(CC) $(OBJDIR)/demo_turn_based_demo.o $(LIB_OBJECTS) -o $@ $(LDFLAGS)
+
+hexturn: $(HEXTURN_TARGET)
+$(HEXTURN_TARGET): $(OBJDIR)/demo_hex_turn_demo.o $(LIB_OBJECTS) | $(BINDIR)
+	$(CC) $(OBJDIR)/demo_hex_turn_demo.o $(LIB_OBJECTS) -o $@ $(LDFLAGS)
 
 # Object file rules
 $(OBJDIR)/core_%.o: $(SRCDIR)/core/%.c | $(OBJDIR)
@@ -123,6 +128,9 @@ run-grid: $(GRID_TARGET)
 
 run-turnbased: $(TURNBASED_TARGET)
 	./$(TURNBASED_TARGET)
+
+run-hexturn: $(HEXTURN_TARGET)
+	./$(HEXTURN_TARGET)
 
 # Test targets
 test: $(TEST_TARGETS)
@@ -191,6 +199,8 @@ help:
 	@echo "  all           - Build main engine"
 	@echo "  physics       - Build physics demo"
 	@echo "  grid          - Build grid demo"
+	@echo "  turnbased     - Build turn-based demo"
+	@echo "  hexturn       - Build hex/grid turn-based demo"
 	@echo "  test          - Run unit tests"
 	@echo "  test-legacy   - Run legacy tests"
 	@echo "  test-integration - Run integration tests"
@@ -198,6 +208,8 @@ help:
 	@echo "  run           - Run main engine"
 	@echo "  run-physics   - Run physics demo"
 	@echo "  run-grid      - Run grid demo"
+	@echo "  run-turnbased - Run turn-based demo"
+	@echo "  run-hexturn   - Run hex/grid turn-based demo"
 	@echo "  debug         - Build with debug flags"
 	@echo "  release       - Build optimized release"
 	@echo "  clean         - Clean all build files"

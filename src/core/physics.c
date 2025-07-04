@@ -147,7 +147,7 @@ void physics_verlet_integration(PhysicsWorld *world, float delta_time) {
       } else {
         // Stay asleep - no physics integration
         verlet->acceleration = (Vec3){0};
-        return;
+        continue;
       }
     } else {
       // Check if we should go to sleep
@@ -157,7 +157,7 @@ void physics_verlet_integration(PhysicsWorld *world, float delta_time) {
           verlet->is_sleeping = true;
           verlet->velocity = (Vec3){0};
           verlet->acceleration = (Vec3){0};
-          return;
+          continue;
         }
       } else {
         verlet->sleep_timer = 0; // Reset timer if moving too fast

@@ -210,6 +210,8 @@ void turn_manager_end_player_turn(TurnManager* manager) {
 // Helper function to find the best available moves for enemy AI
 int get_best_enemy_moves(ECS* ecs, Map* map, ComponentType transform_type, ComponentType unit_type,
                         MapCoord enemy_pos, MapCoord player_pos, MapCoord* best_moves, int max_moves) {
+    (void)transform_type; // Unused parameter
+    (void)unit_type; // Unused parameter
     if (!ecs || !map || !best_moves || max_moves < 4) return 0;
     
     // All possible adjacent moves (4-directional)

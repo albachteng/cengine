@@ -60,7 +60,7 @@ static char* test_sleep_transition() {
     
     // One more frame should trigger sleep
     Vec3 current_pos = transform->position;
-    verlet->old_position = (Vec3){current_pos.x - 0.03f, current_pos.y, current_pos.z};
+    verlet->old_position = (Vec3){current_pos.x - 0.01f, current_pos.y, current_pos.z};
     verlet->acceleration = (Vec3){0.0f, 0.0f, 0.0f};
     physics_verlet_integration(&physics_world, delta_time);
     mu_assert("Should be sleeping after threshold", verlet->is_sleeping);

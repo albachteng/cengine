@@ -79,4 +79,8 @@ void perform_attack(Unit* attacker, Unit* defender, int damage);
 bool is_game_over(TurnManager* manager, ECS* ecs, ComponentType unit_type);
 const char* game_state_to_string(GameState state);
 
+// AI helper functions (exposed for testing)
+int get_best_enemy_moves(ECS* ecs, Map* map, ComponentType transform_type, ComponentType unit_type,
+                        MapCoord enemy_pos, MapCoord player_pos, MapCoord* best_moves, int max_moves);
+
 #endif // UNIT_SYSTEM_H

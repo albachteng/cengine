@@ -14,8 +14,8 @@
 #include <time.h>
 
 // Demo configuration
-#define DEMO_MAP_WIDTH     7
-#define DEMO_MAP_HEIGHT    7
+#define DEMO_MAP_WIDTH     10
+#define DEMO_MAP_HEIGHT    8
 #define PLAYER_MAX_HEALTH  100
 #define ENEMY_MAX_HEALTH   30
 
@@ -31,6 +31,10 @@ typedef struct {
     // Visual settings
     bool show_debug;
     float delta_time;
+    
+    // Window resize support
+    bool need_map_resize;
+    ECS* ecs;  // Store reference to ECS for resize callback
     
     // UI state tracking
     GameState last_displayed_state;
@@ -52,20 +56,50 @@ static Color terrain_colors[TERRAIN_COUNT] = {
     [TERRAIN_VOID] = {0.1f, 0.1f, 0.1f, 1.0f}      // Dark gray
 };
 
-// Generate a simple test map for turn-based demo
+// Generate a more complex test map for turn-based demo
 void generate_demo_map(Map* map) {
     for (int y = 0; y < map->height; y++) {
         for (int x = 0; x < map->width; x++) {
             MapCoord coord = grid_coord(x, y);
             TerrainType terrain = TERRAIN_PLAINS; // Default
             
-            // Create a simple map with some water obstacles
+            // Create a more interesting map with varied terrain
             if (x == 0 || x == map->width - 1 || y == 0 || y == map->height - 1) {
                 terrain = TERRAIN_FOREST; // Forest border
-            } else if ((x == 3 && y == 2) || (x == 3 && y == 4) || (x == 5 && y == 3)) {
-                terrain = TERRAIN_WATER; // Water obstacles
-            } else if (x == map->width / 2 || y == map->height / 2) {
-                terrain = TERRAIN_ROAD; // Cross roads
+            } 
+            // Water river running through the middle
+            else if (x == map->width / 2 && y >= 2 && y <= map->height - 3) {
+                terrain = TERRAIN_WATER;
+            }
+            // Bridge across the river
+            else if (x == map->width / 2 && y == map->height / 2) {
+                terrain = TERRAIN_BRIDGE;
+            }
+            // Mountain clusters
+            else if ((x >= 3 && x <= 5 && y >= 2 && y <= 4) ||
+                     (x >= map->width - 6 && x <= map->width - 4 && y >= map->height - 5 && y <= map->height - 3)) {
+                terrain = TERRAIN_MOUNTAIN;
+            }
+            // Water ponds
+            else if ((x == 2 && y == map->height - 2) || 
+                     (x == map->width - 3 && y == 2)) {
+                terrain = TERRAIN_WATER;
+            }
+            // Roads connecting key areas
+            else if ((y == 1 && x >= 1 && x <= map->width - 2) ||
+                     (y == map->height - 2 && x >= 1 && x <= map->width - 2) ||
+                     (x == 1 && y >= 1 && y <= map->height - 2) ||
+                     (x == map->width - 2 && y >= 1 && y <= map->height - 2)) {
+                terrain = TERRAIN_ROAD;
+            }
+            // Desert areas
+            else if (x >= map->width - 4 && y >= map->height - 4) {
+                terrain = TERRAIN_DESERT;
+            }
+            // Some forest patches
+            else if ((x >= 1 && x <= 3 && y >= map->height / 2 + 1 && y <= map->height / 2 + 2) ||
+                     (x >= map->width - 4 && x <= map->width - 2 && y >= 3 && y <= 5)) {
+                terrain = TERRAIN_FOREST;
             }
             
             map_set_terrain(map, coord, terrain);
@@ -222,6 +256,50 @@ void handle_player_input(TurnBasedDemoState* state, InputState* input, ECS* ecs)
     }
 }
 
+// Window resize callback
+void on_window_resize(int width, int height, void* user_data) {
+    TurnBasedDemoState* state = (TurnBasedDemoState*)user_data;
+    
+    printf("Window resized to %dx%d - recalculating map layout...\\n", width, height);
+    
+    // Calculate new tile size to fit the map in the new window size
+    float new_tile_size = calculate_tile_size_for_window(DEMO_MAP_WIDTH, DEMO_MAP_HEIGHT,
+                                                        width, height, false);
+    
+    // Update map tile size
+    state->map.tile_size = new_tile_size;
+    
+    // Recenter the map
+    float map_width_world = calculate_map_world_width(DEMO_MAP_WIDTH, new_tile_size, false);
+    float map_height_world = calculate_map_world_height(DEMO_MAP_HEIGHT, new_tile_size, false);
+    
+    state->map.origin = (Vec3){
+        -map_width_world * 0.5f + MAP_PADDING_WORLD,
+        -map_height_world * 0.5f + MAP_PADDING_WORLD,
+        0.0f
+    };
+    
+    // Update unit positions to match new map layout
+    if (state->turn_manager.player_entity != 0) {
+        Transform* player_transform = (Transform*)ecs_get_component(state->ecs, state->turn_manager.player_entity, state->transform_type);
+        if (player_transform) {
+            MapCoord player_coord = map_world_to_coord(&state->map, player_transform->position);
+            player_transform->position = map_coord_to_world(&state->map, player_coord);
+        }
+    }
+    
+    if (state->turn_manager.enemy_entity != 0) {
+        Transform* enemy_transform = (Transform*)ecs_get_component(state->ecs, state->turn_manager.enemy_entity, state->transform_type);
+        if (enemy_transform) {
+            MapCoord enemy_coord = map_world_to_coord(&state->map, enemy_transform->position);
+            enemy_transform->position = map_coord_to_world(&state->map, enemy_coord);
+        }
+    }
+    
+    printf("New tile size: %.1f, Map origin: (%.1f, %.1f)\\n", 
+           new_tile_size, state->map.origin.x, state->map.origin.y);
+}
+
 // Render UI information (only when state changes)
 void render_ui(TurnBasedDemoState* state, ECS* ecs) {
     Unit* player_unit = (Unit*)ecs_get_component(ecs, state->turn_manager.player_entity, state->unit_type);
@@ -299,6 +377,7 @@ int main(void) {
     // Initialize demo state
     TurnBasedDemoState state = {0};
     state.show_debug = false;
+    state.ecs = &ecs;  // Store ECS reference for resize callback
     
     // Initialize UI tracking (use invalid values to force first display)
     state.last_displayed_state = GAME_STATE_COUNT; // Invalid state
@@ -335,8 +414,8 @@ int main(void) {
     // Initialize turn manager
     turn_manager_init(&state.turn_manager);
     
-    // Create player at bottom-left
-    MapCoord player_start = grid_coord(1, 1);
+    // Create player at bottom-left (safe starting position)
+    MapCoord player_start = grid_coord(2, 2);
     state.turn_manager.player_entity = unit_create(&ecs, state.transform_type, state.unit_type, 
                                                   UNIT_PLAYER, player_start, PLAYER_MAX_HEALTH);
     
@@ -345,8 +424,8 @@ int main(void) {
     player_transform->scale = vec3_one(); // Fix: Set the scale!
     map_set_occupant(&state.map, player_start, state.turn_manager.player_entity);
     
-    // Create enemy at top-right
-    MapCoord enemy_start = grid_coord(DEMO_MAP_WIDTH - 2, DEMO_MAP_HEIGHT - 2);
+    // Create enemy at top-right (safe starting position)
+    MapCoord enemy_start = grid_coord(DEMO_MAP_WIDTH - 3, DEMO_MAP_HEIGHT - 3);
     state.turn_manager.enemy_entity = unit_create(&ecs, state.transform_type, state.unit_type, 
                                                  UNIT_ENEMY, enemy_start, ENEMY_MAX_HEALTH);
     
@@ -355,11 +434,15 @@ int main(void) {
     enemy_transform->scale = vec3_one(); // Fix: Set the scale!
     map_set_occupant(&state.map, enemy_start, state.turn_manager.enemy_entity);
     
+    // Set up window resize callback
+    window_set_resize_callback(window, on_window_resize, &state);
+    
     LOG_INFO("Turn-Based Demo Initialized!");
     printf("\\nControls:\\n");
     printf("  WASD or Arrow Keys: Move/Attack\\n");
     printf("  F1: Toggle debug info\\n");
     printf("  ESC: Exit\\n");
+    printf("\\nResize the window to test dynamic map scaling!\\n");
     printf("\\nGame: Player (Green) vs Enemy (Red)\\n");
     printf("Move into enemy to attack! Water blocks movement.\\n\\n");
     
@@ -413,6 +496,11 @@ int main(void) {
         if (input_key_pressed(&input, GLFW_KEY_F1)) {
             state.show_debug = !state.show_debug;
             printf("Debug info: %s\\n", state.show_debug ? "ON" : "OFF");
+        }
+        
+        if (input_key_pressed(&input, GLFW_KEY_TAB)) {
+            printf("\\nTAB pressed - but turn_based_demo doesn't support map switching.\\n");
+            printf("Use 'make run-hexturn' for map switching support!\\n");
         }
         
         // Handle player input (only during player turn)
